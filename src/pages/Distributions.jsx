@@ -17,6 +17,7 @@ export default function Distributions() {
   const [rate, setRate] = useState(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [view, setView] = useState(null)
   const r = useQuery(() => load(rate), [rate])
   const d = r.data
   const p = d?.preview
@@ -32,9 +33,11 @@ export default function Distributions() {
 
   return (
     <Page title={t('distributions')} sub={d?.draft ? `${day(d.draft.period_start, lang)} – ${endDay(d.draft.period_end)}` : ''}
-      actions={d?.draft ? <Pill tone="warn">{t('draft')}</Pill> : null}>
+      actions={d?.draft ? <Pill tone="violet">{t('openPeriod')}</Pill> : null}>
       <Loading q={r}>{d && <>
         {msg && <div className="alert">{msg}</div>}
+        {d.draft && <div className="ok xs">{t('openPeriodHint')}</div>}
+        {view && <PeriodDetail period={view} t={t} lang={lang} onClose={() => setView(null)} />}
         {!d.draft && <Card><div className="muted">{t('noDraft')}</div>
           <AdminOnly><button className="btn primary" disabled={busy} onClick={() => act(() => supabase.rpc('admin_open_next_period'))}>{t('openNext')}</button></AdminOnly></Card>}
         {p && <div className="split">
@@ -74,10 +77,72 @@ export default function Distributions() {
             { k: 'rate', h: t('repaymentRate'), r: 1, num: 1, f: (x) => Math.round(n(x.repayment_rate) * 1000) / 10 + '%' },
             { k: 'rep', h: t('repayment'), r: 1, num: 1, f: (x) => usd(x.repayment_usd) },
             { k: 'each', h: t('eachOfFive'), r: 1, num: 1, f: (x) => usd(n(x.distributable_usd) / 5) },
-            { k: 'st', h: t('status'), f: (x) => <Pill tone="good">{t(x.status)}</Pill> }
+            { k: 'st', h: t('status'), f: (x) => <Pill tone="good">{t(x.status)}</Pill> },
+            { k: 'v', h: '', r: 1, f: (x) => <button className="btn" onClick={() => setView(x)}>{t('viewPayments')}</button> }
           ]} rows={d.history.map((h) => ({ ...h, key: h.period_id }))} />
         </Card>
       </>}</Loading>
     </Page>
+  )
+}
+
+async function loadDetail(period) {
+  const [lines, mix] = await Promise.all([
+    q(supabase.from('distribution_lines').select('line_type, amount_usd, share_pct, paid_on, payout_ref, partners(name)').eq('period_id', period.period_id)),
+    q(supabase.rpc('stats_range', { p_from: period.period_start, p_to: period.period_end }))
+  ])
+  return { lines, mix }
+}
+
+const ORDER = ['Company', 'Ismail', 'Mohamed', 'Mustafa', 'Moayed']
+
+function PeriodDetail({ period, t, lang, onClose }) {
+  const r = useQuery(() => loadDetail(period), [period.period_id])
+  const d = r.data
+  const endDay = (x) => day(new Date(new Date(x) - 864e5), lang)
+  const byParty = {}
+  ;(d?.lines || []).forEach((l) => {
+    const k = l.partners?.name
+    const o = (byParty[k] ||= { party: k, share: 0, repay: 0, paid_on: l.paid_on, ref: l.payout_ref })
+    if (l.line_type === 'profit_share') o.share += n(l.amount_usd); else o.repay += n(l.amount_usd)
+    o.paid_on = o.paid_on || l.paid_on
+  })
+  const rows = Object.values(byParty).sort((a, b) => ORDER.indexOf(a.party) - ORDER.indexOf(b.party))
+  const lineTotal = rows.reduce((s, x) => s + x.share + x.repay, 0)
+  const providers = {}
+  ;(d?.mix?.mix || []).forEach((m) => { providers[m.line] = (providers[m.line] || 0) + n(m.profit) })
+  return (
+    <div className="modal-back" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal">
+        <Card title={`${t('periodEnding')} ${endDay(period.period_end)}`} right={<button className="btn" onClick={onClose}>✕</button>}>
+          <div className="xs muted">{day(period.period_start, lang)} – {endDay(period.period_end)} · {t('approvedOn')} {day(period.approved_on, lang)}</div>
+          <Loading q={r}>{d && <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {period.gross_profit_usd !== null && <div className="step"><span>{t('grossProfit')}</span><span className="num">{usd(period.gross_profit_usd)}</span></div>}
+              {period.promo_costs_usd !== null && <div className="step"><span>{t('lessPromos')}</span><span className="num">−{usd(period.promo_costs_usd)}</span></div>}
+              {n(period.adjustments_usd) !== 0 && <div className="step"><span>{t('adjustments')}</span><span className="num">{usd(period.adjustments_usd)}</span></div>}
+              <div className="step total"><b>{t('netProfit')}</b><b className="num">{usd(period.net_profit_usd)}</b></div>
+              <div className="step"><span>{t('financeRepayment')} ({(n(period.repayment_rate) * 100).toFixed(1).replace(/\.0$/, '')}%)</span><span className="num">−{usd(period.repayment_usd)}</span></div>
+              <div className="step good"><b>{t('toDistribute')}</b><b className="num">{usd(period.distributable_usd)}</b></div>
+            </div>
+            <h2>{t('payouts')}</h2>
+            <Table cols={[
+              { k: 'party', h: t('party') },
+              { k: 'share', h: t('profitShare'), r: 1, num: 1, f: (x) => usd(x.share) },
+              { k: 'repay', h: t('repayment'), r: 1, num: 1, f: (x) => (x.repay ? usd(x.repay) : '—') },
+              { k: 'tot', h: t('total'), r: 1, num: 1, f: (x) => <b>{usd(x.share + x.repay)}</b> },
+              { k: 'paid', h: t('paidOn'), num: 1, f: (x) => day(x.paid_on, lang) },
+              { k: 'ref', h: t('reference'), f: (x) => <span className="xs muted">{x.ref || '—'}</span> }
+            ]} rows={rows.map((x) => ({ ...x, key: x.party }))} />
+            <div className="xs muted">{t('total')}: <span className="num">{usd(lineTotal)}</span></div>
+            {period.notes && <div className="xs muted">{period.notes}</div>}
+            <h2>{t('txnsInPeriod')}</h2>
+            <div className="xs muted">{t('txnsInPeriodHint')}</div>
+            <Table cols={[{ k: 'l', h: t('productLine') }, { k: 'p', h: t('profit'), r: 1, num: 1, f: (x) => usd(x.p) }]}
+              rows={Object.entries(providers).sort((a, b) => b[1] - a[1]).map(([l, p]) => ({ key: l, l, p }))} empty={t('nothingHere')} />
+          </>}</Loading>
+        </Card>
+      </div>
+    </div>
   )
 }
