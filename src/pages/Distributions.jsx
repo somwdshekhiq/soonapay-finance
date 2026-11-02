@@ -1,33 +1,38 @@
 import { useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, day, n } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, day, n, gapForecast } from '../lib.js'
 import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
-async function load(rate) {
+async function load(rate, crate) {
   const draft = await q(supabase.from('distribution_periods').select('*').eq('status', 'draft').maybeSingle())
-  const preview = draft ? (await q(supabase.rpc('period_preview', { p_period: draft.period_id, p_rate: rate })))[0] : null
+  const preview = draft ? (await q(supabase.rpc('period_preview_v2', { p_period: draft.period_id, p_rate: rate, p_company_rate: crate })))[0] : null
+  const cm = await q(supabase.from('v_customer_money').select('*').order('snapshot_date', { ascending: false }).limit(1))
   const history = await q(supabase.from('distribution_periods').select('*').neq('status', 'draft').order('period_start', { ascending: false }))
   const lines = await q(supabase.from('v_partner_statement').select('*').in('period_id', history.slice(0, 8).map((h) => h.period_id)))
-  return { draft, preview, history, lines }
+  return { draft, preview, history, lines, gap: cm[0] && cm[0].customer_money !== null ? n(cm[0].customer_money) - n(cm[0].wallets_total) : null }
 }
 
-const RATES = [0, 0.1, 0.2, 0.5, 1]
+const RATES = [0, 0.05, 0.1, 0.2, 0.5, 1]
+const CRATES = [0.2, 0.3, 0.35, 0.4, 0.5]
 
 export default function Distributions() {
   const { t, lang, role } = useApp()
   const [rate, setRate] = useState(null)
+  const [crate, setCrate] = useState(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [view, setView] = useState(null)
-  const r = useQuery(() => load(rate), [rate])
+  const r = useQuery(() => load(rate, crate), [rate, crate])
   const d = r.data
   const p = d?.preview
   const effRate = rate ?? (d?.draft ? n(d.draft.repayment_rate) : 0)
+  const effCrate = crate ?? (d?.draft && d.draft.company_rate !== null ? n(d.draft.company_rate) : 0.2)
+  const fc = d && p && d.gap > 0 ? gapForecast(d.gap, n(p.company_share)) : null
 
   const act = async (fn) => {
     setBusy(true); setMsg('')
     const { error } = await fn()
     setBusy(false)
-    if (error) setMsg(error.message); else { setRate(null); r.reload() }
+    if (error) setMsg(error.message); else { setRate(null); setCrate(null); r.reload() }
   }
   const endDay = (x) => day(new Date(new Date(x) - 864e5), lang)
 
@@ -54,16 +59,29 @@ export default function Distributions() {
                   onClick={() => setRate(x)}>{x === 1 ? 'All' : Math.round(x * 100) + '%'}</button>)}
               </div>
             </div>
-            <div className="step good"><div><b>{t('toDistribute')}</b><div className="xs">{t('splitFive')} · {usd(p.founder_share)} {t('each')}</div></div><b className="num">{usd(p.distributable)}</b></div>
+            <div className="step" style={{ flexDirection: 'column', gap: 10 }}>
+              <div className="row between"><div><div>{t('companyReserve')} · {Math.round(effCrate * 100)}%</div><div className="xs muted">{t('companyReserveNote')} · {t('rate20Note')}</div></div>
+                <span className="num" style={{ color: 'var(--accent-d)' }}>{usd(p.company_share)}</span></div>
+              <div className="row gap8 wrap" role="group" aria-label={t('companyRate')}>
+                {CRATES.map((x) => <button key={x} className={'btn ' + (Math.abs(x - effCrate) < 1e-6 ? 'on' : '')} aria-pressed={Math.abs(x - effCrate) < 1e-6}
+                  onClick={() => setCrate(x)}>{Math.round(x * 100)}%</button>)}
+                <label className="row gap8 xs muted">{t('customRate')}
+                  <input className="inp" style={{ width: 80 }} type="number" min="0" max="100" step="1" aria-label={t('customRate')}
+                    onKeyDown={(e) => { if (e.key === 'Enter') setCrate(Math.min(100, Math.max(0, Number(e.target.value))) / 100) }}
+                    onBlur={(e) => { if (e.target.value !== '') setCrate(Math.min(100, Math.max(0, Number(e.target.value))) / 100) }} /></label>
+              </div>
+              {d.gap > 0 && <div className="xs" style={{ color: 'var(--warn)' }}>{t('gapCloses')}: <b className="num">{usd(d.gap)}</b>{fc && isFinite(fc.periods) ? ' · ' + t('closesIn').replace('{p}', fc.periods).replace('{m}', fc.months) : ''}</div>}
+            </div>
+            <div className="step good"><div><b>{t('toDistribute')}</b><div className="xs">{t('splitFour')} · {usd(p.founder_share)} {t('each')}</div></div><b className="num">{usd(n(p.founder_share) * 4)}</b></div>
           </Card>
           <Card title={t('payouts')}>
             <Table cols={[{ k: 'n', h: t('party') }, { k: 's', h: t('profitShare'), r: 1, num: 1 }, { k: 'r', h: t('repayment'), r: 1, num: 1 }, { k: 'tt', h: t('total'), r: 1, num: 1 }]}
               rows={[['Company', p.company_share, 0], ['Ismail', p.founder_share, p.repayment], ['Mohamed', p.founder_share, 0], ['Mustafa', p.founder_share, 0], ['Moayed', p.founder_share, 0]]
                 .map(([nm, s, rp]) => ({ key: nm, n: nm, s: usd(s), r: rp ? usd(rp) : '—', tt: usd(n(s) + n(rp)) }))} />
             {role === 'admin' && <div className="row gap8 wrap" style={{ marginTop: 'auto' }}>
-              <button className="btn" disabled={busy} onClick={() => act(() => supabase.rpc('admin_recalculate_period', { p_period: d.draft.period_id, p_rate: effRate }))}>{t('recalculate')}</button>
+              <button className="btn" disabled={busy} onClick={() => act(() => supabase.rpc('admin_recalculate_period_v2', { p_period: d.draft.period_id, p_rate: effRate, p_company_rate: effCrate }))}>{t('recalculate')}</button>
               <button className="btn primary" disabled={busy} onClick={async () => {
-                await supabase.rpc('admin_recalculate_period', { p_period: d.draft.period_id, p_rate: effRate })
+                await supabase.rpc('admin_recalculate_period_v2', { p_period: d.draft.period_id, p_rate: effRate, p_company_rate: effCrate })
                 act(() => supabase.rpc('approve_period_guarded', { p_period: d.draft.period_id }))
               }}>{t('approveLock')}</button>
             </div>}

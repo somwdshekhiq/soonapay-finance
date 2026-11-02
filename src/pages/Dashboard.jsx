@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, gapForecast } from '../lib.js'
 import { Page, Card, Kpi, Loading, Bars, Table, AdminOnly } from '../ui.jsx'
 
 async function load() {
@@ -14,7 +14,7 @@ async function load() {
     q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('balance_order'))
   ])
   let preview = null
-  if (draft) preview = (await q(supabase.rpc('period_preview', { p_period: draft.period_id })))[0]
+  if (draft) preview = (await q(supabase.rpc('period_preview_v2', { p_period: draft.period_id })))[0]
   return {
     draft, preview, providers, balances, unpriced, waiting,
     outstanding: finance.reduce((s, r) => s + n(r.outstanding_usd), 0),
@@ -41,7 +41,7 @@ function BalanceForm({ providers, onDone, t }) {
     <div className="card" style={{ background: 'var(--ground)', border: 0 }}>
       <div className="form-grid">
         <label className="field"><span>{t('date')}</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-        <label className="field"><span>{t('customerWallets')}</span><input type="number" step="0.01" onChange={(e) => setVals({ ...vals, wallets: e.target.value })} /></label>
+        <label className="field"><span>{t('customerOwed')}</span><input type="number" step="0.01" onChange={(e) => setVals({ ...vals, wallets: e.target.value })} /></label>
         {providers.map((p) => (
           <label key={p.provider_id} className="field"><span>{p.name}</span>
             <input type="number" step="0.01" onChange={(e) => setVals({ ...vals, [p.provider_id]: e.target.value })} /></label>
@@ -70,21 +70,32 @@ export default function Dashboard() {
                note={<a href="#/distributions">{t('distributions')}</a>} />
         </div>
 
-        <Card title={t('moneyHeld')} right={<AdminOnly><button className="btn" onClick={() => setEditing(true)}>{t('updateBalances')}</button></AdminOnly>}>
-          {editing && <BalanceForm providers={d.providers} t={t} onDone={() => { setEditing(false); r.reload() }} />}
-          <div className="split">
-            {(() => { const w = d.balances.find((b) => b.kind === 'customer_wallets'); return (
-              <Kpi tone="warn" label={t('customerWallets')} value={w ? usd(w.amount_usd) : t('notEnteredYet')}
-                   note={(w ? `${t('asOf')} ${day(w.snapshot_date, lang)} · ` : '') + t('customerWalletsNote')} />) })()}
-            <div className="wide">
+        {(() => {
+          const w = d.balances.find((b) => b.kind === 'customer_wallets')
+          const rows = d.providers.map((p) => ({ key: p.provider_id, name: p.name, b: d.balances.find((b) => b.kind === 'provider' && b.provider === p.name) }))
+          const total = rows.reduce((s, x) => s + (x.b ? n(x.b.amount_usd) : 0), 0)
+          const owed = w ? n(w.amount_usd) : null
+          const gap = owed === null ? null : owed - total
+          const reserve = d.preview ? n(d.preview.company_share) : 0
+          const fc = gap > 0 ? gapForecast(gap, reserve) : null
+          return (
+            <Card title={t('walletsHeading')} right={<AdminOnly><button className="btn" onClick={() => setEditing(true)}>{t('updateBalances')}</button></AdminOnly>}>
+              {editing && <BalanceForm providers={d.providers} t={t} onDone={() => { setEditing(false); r.reload() }} />}
+              <div className="grid-kpi">
+                <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? `${t('asOf')} ${day(w.snapshot_date, lang)}` : ''} />
+                <Kpi tone="soft" label={t('walletsTotal')} value={usd(total)} note={rows.filter((x) => !x.b).length ? `${rows.filter((x) => !x.b).length} × ${t('notEnteredYet')}` : ''} />
+                <Kpi tone={gap > 0 ? 'warn' : 'good'} label={gap > 0 ? t('gapShort') : t('surplus')} value={gap === null ? '—' : usd(Math.abs(gap))}
+                     note={gap > 0 ? (fc && isFinite(fc.periods) ? t('gapForecastText').replace('{amt}', usd(reserve)).replace('{p}', fc.periods).replace('{m}', fc.months) : t('gapNoReserve')) : ''} />
+              </div>
               <Table cols={[
-                { k: 'name', h: t('providerBalance') },
-                { k: 'bal', h: t('balance'), r: 1, num: 1, f: (x) => x.b ? usd(x.b.amount_usd) : <span className="muted">{t('notEnteredYet')}</span> },
-                { k: 'asof', h: t('asOf'), f: (x) => x.b ? day(x.b.snapshot_date, lang) : '—' }
-              ]} rows={d.providers.map((p) => ({ key: p.provider_id, name: p.name, b: d.balances.find((b) => b.kind === 'provider' && b.provider === p.name) }))} />
-            </div>
-          </div>
-        </Card>
+                { k: 'name', h: t('walletCol') },
+                { k: 'bal', h: t('balance'), r: 1, num: 1, f: (x) => x.total ? <b>{usd(x.v)}</b> : x.b ? usd(x.b.amount_usd) : <span className="muted">{t('notEnteredYet')}</span> },
+                { k: 'asof', h: t('asOf'), f: (x) => x.total ? '' : x.b ? day(x.b.snapshot_date, lang) : '—' }
+              ]} rows={[...rows, { key: 'total', name: <b>{t('total')}</b>, total: true, v: total }]} />
+              <div className="xs muted">{t('customerWalletsNote')}</div>
+            </Card>
+          )
+        })()}
 
         <div className="split">
           <Card title={t('profitDistributedByMonth')} className="wide">

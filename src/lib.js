@@ -51,6 +51,13 @@ export function usd(v, dp = 2) {
   const s = Math.abs(x).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
   return (x < 0 ? '−$' : '$') + s
 }
+// Customer-money gap forecast: how many 14-day periods the Company reserve needs to cover the gap
+export function gapForecast(gap, perPeriod) {
+  if (!(gap > 0)) return null
+  if (!(perPeriod > 0)) return { periods: Infinity, months: Infinity }
+  const periods = Math.ceil(gap / perPeriod)
+  return { periods, months: Math.round((periods * 14) / 30.4 * 10) / 10 }
+}
 export const int = (v) => n(v).toLocaleString('en-US')
 export const pct = (v, dp = 1) => (v === null || v === undefined ? '—' : n(v).toFixed(dp) + '%')
 export function day(v, lang = 'en') {
@@ -109,7 +116,13 @@ export const T = {
     legendPriced: 'Priced by a rule', legendOther: 'Other / test / already imported · $0', legendNeedsRule: 'Never seen · needs a decision',
     nothingHere: 'Nothing in this view', showingFirst: 'Showing first', profitInFiles: 'Profit in new rows', clear: 'Clear',
     saveRows: 'Save rows', recentImports: 'Recent imports', file: 'File',
-    thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range', redeemedList: 'Redeemed', openPeriod: 'Open period', viewPayments: 'View', approvedOn: 'approved', paidOn: 'Paid on', reference: 'Reference', txnsInPeriod: 'Profit from transactions dated in this period', txnsInPeriodHint: 'For periods paid from Excel, the paid amount followed Excel\'s running total, so this breakdown can differ slightly from the net above.', openPeriodHint: 'This is the current period. It keeps counting new transactions until you press Approve & lock at the end of the period; then it is frozen and the next period opens.', removeFile: 'Remove file', markOther: 'Mark as Other · $0', cancelledList: 'Removed', removeFromList: 'Remove', restore: 'Restore', redeemedOn: 'Redeemed on', undoDone: 'Undo',
+    thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range', redeemedList: 'Redeemed', walletsHeading: 'Customer money vs wallet balances', walletCol: 'Wallet', walletsTotal: 'Total in our wallets',
+    customerOwed: 'Owed to customers (user balances)', gapShort: 'Shortfall (customer money in use)', surplus: 'Covered — surplus',
+    gapForecastText: 'At the current Company reserve of {amt} per period, the shortfall closes in about {p} periods (~{m} months).',
+    gapNoReserve: 'With no Company reserve the shortfall does not close.', companyRate: 'Company reserve rate', companyReserve: 'Company reserve',
+    companyReserveNote: 'of what is left after repayment · goes to the Company account', splitFour: 'Split equally among the 4 founders',
+    rate20Note: '20% = same as the old equal split (5 shares)', gapCloses: 'Shortfall now', closesIn: 'closes in about {p} periods (~{m} months) at this rate',
+    customRate: 'Custom %', openPeriod: 'Open period', viewPayments: 'View', approvedOn: 'approved', paidOn: 'Paid on', reference: 'Reference', txnsInPeriod: 'Profit from transactions dated in this period', txnsInPeriodHint: 'For periods paid from Excel, the paid amount followed Excel\'s running total, so this breakdown can differ slightly from the net above.', openPeriodHint: 'This is the current period. It keeps counting new transactions until you press Approve & lock at the end of the period; then it is frozen and the next period opens.', removeFile: 'Remove file', markOther: 'Mark as Other · $0', cancelledList: 'Removed', removeFromList: 'Remove', restore: 'Restore', redeemedOn: 'Redeemed on', undoDone: 'Undo',
     feeProfitPct: 'Fee as profit', feeCostPct: 'Fee as cost', addRule: 'Add fee rule', changeFromDate: 'Change from a date', correctRule: 'Correct this rule',
     changeHint: 'Safe way to change a price: the current rule ends at the chosen date/time and the new values apply from then. Past transactions keep their profit.',
     correctHint: 'Use only to fix a typing mistake: the rule is changed for its whole validity. Open-period transactions are re-priced; locked periods are not touched.',
@@ -169,7 +182,13 @@ export const T = {
     legendPriced: 'مسعّرة بقاعدة', legendOther: 'أخرى / تجربة / مستوردة · $0', legendNeedsRule: 'غير معروفة · تحتاج قرار',
     nothingHere: 'لا يوجد شيء هنا', showingFirst: 'عرض أول', profitInFiles: 'الربح في المعاملات الجديدة', clear: 'مسح',
     saveRows: 'حفظ المعاملات', recentImports: 'آخر عمليات الاستيراد', file: 'الملف',
-    thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق', redeemedList: 'تم الاسترداد', openPeriod: 'فترة مفتوحة', viewPayments: 'عرض', approvedOn: 'اعتُمدت', paidOn: 'تاريخ الدفع', reference: 'المرجع', txnsInPeriod: 'الربح من المعاملات المؤرخة في هذه الفترة', txnsInPeriodHint: 'الفترات المدفوعة من الإكسل اعتمدت على المجموع التراكمي، لذلك قد يختلف هذا التفصيل قليلاً عن الصافي أعلاه.', openPeriodHint: 'هذه هي الفترة الحالية. تستمر في احتساب المعاملات الجديدة حتى تضغط اعتماد وإقفال الفترة في نهايتها، ثم تُجمّد وتُفتح الفترة التالية.', removeFile: 'إزالة الملف', markOther: 'اعتبارها أخرى · $0', cancelledList: 'محذوفة', removeFromList: 'حذف', restore: 'استرجاع', redeemedOn: 'تاريخ الاسترداد', undoDone: 'تراجع',
+    thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق', redeemedList: 'تم الاسترداد', walletsHeading: 'أموال العملاء مقابل أرصدة المحافظ', walletCol: 'المحفظة', walletsTotal: 'الإجمالي في محافظنا',
+    customerOwed: 'المستحق للعملاء (أرصدة المستخدمين)', gapShort: 'العجز (أموال عملاء مستخدمة)', surplus: 'مغطى — فائض',
+    gapForecastText: 'باحتياطي الشركة الحالي {amt} لكل فترة، يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).',
+    gapNoReserve: 'بدون احتياطي للشركة لن يُغلق العجز.', companyRate: 'نسبة احتياطي الشركة', companyReserve: 'احتياطي الشركة',
+    companyReserveNote: 'من المتبقي بعد السداد · يذهب إلى حساب الشركة', splitFour: 'يُقسم بالتساوي على الشركاء الأربعة',
+    rate20Note: '20% = نفس التقسيم المتساوي القديم (5 حصص)', gapCloses: 'العجز الحالي', closesIn: 'يُغلق خلال حوالي {p} فترة (~{m} شهر) بهذه النسبة',
+    customRate: 'نسبة أخرى %', openPeriod: 'فترة مفتوحة', viewPayments: 'عرض', approvedOn: 'اعتُمدت', paidOn: 'تاريخ الدفع', reference: 'المرجع', txnsInPeriod: 'الربح من المعاملات المؤرخة في هذه الفترة', txnsInPeriodHint: 'الفترات المدفوعة من الإكسل اعتمدت على المجموع التراكمي، لذلك قد يختلف هذا التفصيل قليلاً عن الصافي أعلاه.', openPeriodHint: 'هذه هي الفترة الحالية. تستمر في احتساب المعاملات الجديدة حتى تضغط اعتماد وإقفال الفترة في نهايتها، ثم تُجمّد وتُفتح الفترة التالية.', removeFile: 'إزالة الملف', markOther: 'اعتبارها أخرى · $0', cancelledList: 'محذوفة', removeFromList: 'حذف', restore: 'استرجاع', redeemedOn: 'تاريخ الاسترداد', undoDone: 'تراجع',
     feeProfitPct: 'الرسوم كربح', feeCostPct: 'الرسوم كتكلفة', addRule: 'إضافة قاعدة رسوم', changeFromDate: 'تغيير ابتداءً من تاريخ', correctRule: 'تصحيح هذه القاعدة',
     changeHint: 'الطريقة الآمنة لتغيير السعر: تنتهي القاعدة الحالية في التاريخ والوقت المحدد وتُطبق القيم الجديدة بعده. تبقى أرباح المعاملات السابقة كما هي.',
     correctHint: 'للتصحيح فقط عند خطأ في الإدخال: تتغير القاعدة طوال مدة سريانها. يُعاد تسعير معاملات الفترة المفتوحة ولا تتأثر الفترات المقفلة.',
