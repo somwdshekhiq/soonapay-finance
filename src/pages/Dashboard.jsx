@@ -11,7 +11,7 @@ async function load() {
     q(supabase.from('v_unclassified').select('txn_id', { count: 'exact', head: true }).then((r) => ({ data: r.count, error: r.error }))),
     q(supabase.from('promo_redemptions').select('redemption_id', { count: 'exact', head: true }).eq('status', 'pending').then((r) => ({ data: r.count, error: r.error }))),
     q(supabase.from('v_latest_balances').select('*')),
-    q(supabase.from('providers').select('provider_id, name, status').eq('status', 'active').order('name'))
+    q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('name'))
   ])
   let preview = null
   if (draft) preview = (await q(supabase.rpc('period_preview', { p_period: draft.period_id })))[0]
@@ -29,11 +29,11 @@ function BalanceForm({ providers, onDone, t }) {
   const [vals, setVals] = useState({})
   const [msg, setMsg] = useState('')
   const save = async () => {
-    const rows = Object.entries(vals).filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => (
-      k === 'wallets' ? { snapshot_date: date, kind: 'customer_wallets', amount_usd: Number(v) }
-        : { snapshot_date: date, kind: 'provider', provider_id: Number(k), amount_usd: Number(v) }))
-    if (!rows.length) return
-    const { error } = await supabase.from('balance_snapshots').insert(rows)
+    const provs = {}
+    Object.entries(vals).forEach(([k, v]) => { if (k !== 'wallets' && v !== '' && v !== undefined) provs[k] = v })
+    const wallets = vals.wallets === undefined || vals.wallets === '' ? null : Number(vals.wallets)
+    if (wallets === null && !Object.keys(provs).length) return
+    const { error } = await supabase.rpc('admin_save_balances', { p_date: date, p_wallets: wallets, p_providers: provs })
     if (error) return setMsg(error.message)
     onDone()
   }
@@ -89,7 +89,7 @@ export default function Dashboard() {
         <div className="split">
           <Card title={t('profitDistributedByMonth')} className="wide">
             <Bars aria={t('profitDistributedByMonth')} items={d.monthly.map((m) => ({
-              label: monthLabel(m.month, lang), sub: (n(m.distributed_usd) / 1000).toFixed(1) + 'k',
+              label: monthLabel(m.month, lang), top: '$' + (n(m.distributed_usd) / 1000).toFixed(1) + 'k',
               values: [n(m.distributed_usd)], colors: ['#9C86F0'], title: usd(m.distributed_usd)
             }))} />
           </Card>

@@ -52,7 +52,9 @@ h2{margin:0;font-size:16px;font-weight:600}
 .choice{flex:1 1 260px;text-align:start;font:inherit;cursor:pointer;padding:18px;border-radius:10px;background:#fff;border:1px solid #CBD1D9;color:var(--ink);display:flex;flex-direction:column;gap:6px}
 .choice.on{background:var(--accent-s);border:2px solid var(--accent)}
 .bars{display:flex;align-items:flex-end;gap:8px;border-bottom:1px solid var(--line)}
-.bar-group{flex:1 1 0;min-width:0;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%}
+.bar-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px}
+.bar-top{font-size:10px;color:var(--muted);white-space:nowrap}
+.bar-group{width:100%;display:flex;align-items:flex-end;justify-content:center;gap:3px}
 .bar{flex:1 1 0;max-width:30px;border-radius:3px 3px 0 0}
 .bar-labels{display:flex;gap:8px;margin-top:6px}.bar-labels>div{flex:1 1 0;min-width:0;text-align:center;font-size:11px;color:var(--muted)}
 .step{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line2)}

@@ -64,7 +64,7 @@ export const monthLabel = (v, lang = 'en') =>
 export const T = {
   en: {
     appName: 'SoonaPay', finance: 'Finance', dashboard: 'Dashboard', statistics: 'Statistics', distributions: 'Distributions',
-    financePartners: 'Finance & partners', expenses: 'Expenses', promos: 'Promos & redemptions', rules: 'Rules', importFiles: 'Import',
+    financePartners: 'Finance & partners', expenses: 'Expenses', promos: 'Promos & redemptions', rules: 'Rules', importFiles: 'Import files',
     signIn: 'Sign in', signOut: 'Sign out', email: 'Email', password: 'Password', viewOnly: 'View only', admin: 'Admin',
     currentPeriod: 'Current period', netProfit: 'Net profit this period', outstandingFinance: 'Outstanding finance',
     companyAccount: 'Company account', nextDistribution: 'Next distribution', draft: 'Draft', approved: 'Approved', paid: 'Paid',
@@ -99,7 +99,17 @@ export const T = {
     language: 'العربية', onlyAdmin: 'Only the admin can change data.', saved: 'Saved', since: 'since',
     notMember: 'Your login works, but it is not linked to SoonaPay Finance yet. Ask the admin to add you.',
     companyNote: 'In: the Company share of each distribution. Out: expenses paid from the Company account.',
-    in: 'In', out: 'Out'
+    in: 'In', out: 'Out',
+    importSub: 'One slot per provider · fill the ones you have, check the combined preview, then save all together',
+    chooseFile: 'Choose file (CSV / Excel)', lastImport: 'Latest transaction', mapColumns: 'Some columns were not found in this file. Pick them once:',
+    field_ref: 'Reference', field_time: 'Date & time', field_amount: 'Amount', saveMapping: 'Use these columns (remembered next time)',
+    outcome_new: 'new', outcome_duplicate: 'already imported', outcome_other: 'other / test · $0', outcome_test: 'test account',
+    outcome_needs_rule: 'needs a rule', outcome_invalid: 'missing date/amount', newCustomersShort: 'new customers',
+    combinedPreview: 'Combined preview · files', show_attention: 'Needs attention', show_new: 'New', show_other: 'Other', show_duplicate: 'Already imported', show_all: 'All',
+    legendPriced: 'Priced by a rule', legendOther: 'Other / test / already imported · $0', legendNeedsRule: 'Never seen · needs a decision',
+    nothingHere: 'Nothing in this view', showingFirst: 'Showing first', profitInFiles: 'Profit in new rows', clear: 'Clear',
+    saveRows: 'Save rows', recentImports: 'Recent imports', file: 'File',
+    thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range'
   },
   ar: {
     appName: 'سونا باي', finance: 'المالية', dashboard: 'لوحة المتابعة', statistics: 'الإحصائيات', distributions: 'توزيع الأرباح',
@@ -138,6 +148,16 @@ export const T = {
     language: 'English', onlyAdmin: 'التعديل متاح للمدير فقط.', saved: 'تم الحفظ', since: 'منذ',
     notMember: 'تسجيل الدخول يعمل لكن الحساب غير مرتبط بسونا باي المالية بعد. اطلب من المدير إضافتك.',
     companyNote: 'الداخل: حصة الشركة من كل توزيع. الخارج: المصروفات المدفوعة من حساب الشركة.',
-    in: 'داخل', out: 'خارج'
+    in: 'داخل', out: 'خارج',
+    importSub: 'خانة لكل مزود · ارفع الملفات المتوفرة، راجع المعاينة المجمعة، ثم احفظ الكل',
+    chooseFile: 'اختر ملفاً (CSV / Excel)', lastImport: 'آخر معاملة', mapColumns: 'بعض الأعمدة غير موجودة في هذا الملف. حددها مرة واحدة:',
+    field_ref: 'المرجع', field_time: 'التاريخ والوقت', field_amount: 'المبلغ', saveMapping: 'استخدم هذه الأعمدة (تُحفظ للمرات القادمة)',
+    outcome_new: 'جديدة', outcome_duplicate: 'مستوردة سابقاً', outcome_other: 'أخرى / تجربة · $0', outcome_test: 'حساب تجربة',
+    outcome_needs_rule: 'تحتاج قاعدة', outcome_invalid: 'تاريخ/مبلغ ناقص', newCustomersShort: 'عملاء جدد',
+    combinedPreview: 'المعاينة المجمعة · ملفات', show_attention: 'يحتاج متابعة', show_new: 'جديدة', show_other: 'أخرى', show_duplicate: 'مستوردة سابقاً', show_all: 'الكل',
+    legendPriced: 'مسعّرة بقاعدة', legendOther: 'أخرى / تجربة / مستوردة · $0', legendNeedsRule: 'غير معروفة · تحتاج قرار',
+    nothingHere: 'لا يوجد شيء هنا', showingFirst: 'عرض أول', profitInFiles: 'الربح في المعاملات الجديدة', clear: 'مسح',
+    saveRows: 'حفظ المعاملات', recentImports: 'آخر عمليات الاستيراد', file: 'الملف',
+    thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق'
   }
 }

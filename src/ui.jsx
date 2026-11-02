@@ -52,21 +52,25 @@ export function Loading({ q, children }) {
   return children
 }
 
-// Simple bar chart. series: [{label, values:[...], colors:[...]}]
+// Bar chart with the value printed above each column
 export function Bars({ items, height = 180, aria }) {
   const max = Math.max(1, ...items.flatMap((i) => i.values.map(Math.abs)))
+  const room = height - 24
   return (
     <div>
       <div className="bars" style={{ height }} role="img" aria-label={aria}>
         {items.map((it, i) => (
-          <div key={i} className="bar-group" title={it.title}>
-            {it.values.map((v, j) => (
-              <div key={j} className="bar" style={{ height: Math.max(2, (Math.abs(v) / max) * (height - 8)), background: it.colors[j] }} />
-            ))}
+          <div key={i} className="bar-col" title={it.title}>
+            {it.top && <div className="bar-top num">{it.top}</div>}
+            <div className="bar-group">
+              {it.values.map((v, j) => (
+                <div key={j} className="bar" style={{ height: Math.max(2, (Math.abs(v) / max) * room), background: it.colors[j] }} />
+              ))}
+            </div>
           </div>
         ))}
       </div>
-      <div className="bar-labels">{items.map((it, i) => <div key={i}><div>{it.label}</div>{it.sub && <div className="num">{it.sub}</div>}</div>)}</div>
+      <div className="bar-labels">{items.map((it, i) => <div key={i}>{it.label}</div>)}</div>
     </div>
   )
 }
