@@ -1,0 +1,34 @@
+name: Weekly database backup
+
+on:
+  schedule:
+    - cron: "0 22 * * 4"   # every Thursday 22:00 UTC = Friday 01:00 Riyadh
+  workflow_dispatch: {}      # "Run workflow" button for an on-demand backup
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the secret is set
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "Add the SUPABASE_DB_URL secret first (Settings > Secrets and variables > Actions)."; exit 1; fi
+
+      - name: Dump the database (full restore file + readable SQL)
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          STAMP=$(date -u +%Y-%m-%d)
+          mkdir -p backup
+          docker run --rm -e DB_URL -v "$PWD/backup:/out" postgres:17 \
+            sh -c 'pg_dump "$DB_URL" --schema=public --no-owner --no-privileges -F c -f /out/soonapay-'"$STAMP"'.dump && \
+                   pg_dump "$DB_URL" --schema=public --no-owner --no-privileges | gzip > /out/soonapay-'"$STAMP"'.sql.gz'
+          ls -la backup
+
+      - name: Keep the backup for 90 days
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: soonapay-backup-${{ github.run_number }}
+          path: backup/
+          retention-days: 90
