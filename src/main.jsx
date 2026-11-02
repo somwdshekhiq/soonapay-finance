@@ -93,12 +93,12 @@ function App() {
           <img className="logo" src="/logo.png" alt="SoonaPay" />
           <div className="brand">{t('appName')}</div>
           <div className="muted-inv small">{t('finance')} · {member.role === 'admin' ? t('admin') : t('viewOnly')}</div>
-          <div className="nav-links">
-            {ROUTES.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>{t(k)}</a>)}
-          </div>
-          <div className="nav-foot">
+          <div className="nav-top">
             <button className="btn nav-btn" onClick={toggleLang}>{t('language')}</button>
             <button className="btn nav-btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button>
+          </div>
+          <div className="nav-links">
+            {ROUTES.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>{t(k)}</a>)}
           </div>
         </nav>
         <Current />

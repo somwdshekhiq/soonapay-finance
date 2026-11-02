@@ -50,8 +50,7 @@ export default function Finance() {
           ]} rows={d.rows.slice(0, 40)} />
         </Card>
 
-        <div className="split">
-          <Card title={t('partnerStatements')} className="wide">
+        <Card title={t('partnerStatements')}>
             <Table cols={[
               { k: 'partner', h: t('party') },
               { k: 'share', h: t('profitShare'), r: 1, num: 1, f: (x) => usd(x.share) },
@@ -59,16 +58,15 @@ export default function Finance() {
               { k: 'ytd', h: String(new Date().getFullYear()), r: 1, num: 1, f: (x) => usd(d.ytd[x.partner] || 0) },
               { k: 'total', h: t('total'), r: 1, num: 1, f: (x) => usd(x.total) }
             ]} rows={[...d.partners].sort((a, b) => order.indexOf(a.partner) - order.indexOf(b.partner)).map((p) => ({ ...p, key: p.partner }))} />
-          </Card>
-          <Card title={t('companyAccount')} right={<span className="num" style={{ fontSize: 22 }}>{usd(d.companyBal)}</span>}>
+        </Card>
+        <Card title={t('companyAccount')} right={<span className="num" style={{ fontSize: 22 }}>{usd(d.companyBal)}</span>}>
             <Table cols={[
               { k: 'dt', h: t('date'), num: 1, f: (x) => day(x.dt, lang) },
               { k: 'source', h: t('entry'), f: (x) => <span className="xs">{x.source}</span> },
               { k: 'amount_usd', h: t('amount'), r: 1, num: 1, f: (x) => <span style={{ color: n(x.amount_usd) < 0 ? 'var(--warn)' : 'var(--accent-d)' }}>{usd(x.amount_usd)}</span> }
             ]} rows={d.company.map((c, i) => ({ ...c, key: i }))} />
             <div className="xs muted">{t('companyNote')}</div>
-          </Card>
-        </div>
+        </Card>
       </>}</Loading>
     </Page>
   )

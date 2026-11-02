@@ -109,7 +109,18 @@ export const T = {
     legendPriced: 'Priced by a rule', legendOther: 'Other / test / already imported · $0', legendNeedsRule: 'Never seen · needs a decision',
     nothingHere: 'Nothing in this view', showingFirst: 'Showing first', profitInFiles: 'Profit in new rows', clear: 'Clear',
     saveRows: 'Save rows', recentImports: 'Recent imports', file: 'File',
-    thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range'
+    thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range',
+    feeProfitPct: 'Fee as profit', feeCostPct: 'Fee as cost', addRule: 'Add fee rule', changeFromDate: 'Change from a date', correctRule: 'Correct this rule',
+    changeHint: 'Safe way to change a price: the current rule ends at the chosen date/time and the new values apply from then. Past transactions keep their profit.',
+    correctHint: 'Use only to fix a typing mistake: the rule is changed for its whole validity. Open-period transactions are re-priced; locked periods are not touched.',
+    addHint: 'A new rule applies from its start date to transactions of that provider and type (and method, if chosen).',
+    anyMethod: 'Any method', rule: 'Rule', newPriceFrom: 'New price applies from', editTypeRule: 'Edit type rule', addTypeRule: 'Add type rule',
+    typeRuleHint: 'Type rules decide what a provider row is. Checked by # (lowest first); the first match wins. Use % as a wildcard, e.g. %card funding%.',
+    matchOn: 'Match on', categoryCol: 'Category column', typeCol: 'Type column', contains: 'Text (use % as wildcard)', direction: 'Direction', any: 'Any',
+    priority: 'Order #', last: 'Last', allProviders: 'All providers', activeNow: 'Active now', upcoming: 'Upcoming', ended: 'Ended', all: 'All',
+    search: 'Search', searchHint: 'Type, method, note…', feeRulesTab: 'Fee rules', typeRulesTab: 'Type rules', base: 'Base rule', correct: 'Correct',
+    endRule: 'End now', edit: 'Edit', unknownType: 'Not recognised',
+    unpricedHint: 'Rows that are not recognised (add a type rule) or have no fee rule (add a fee rule). After saving a rule, open-period rows are re-priced automatically.'
   },
   ar: {
     appName: 'سونا باي', finance: 'المالية', dashboard: 'لوحة المتابعة', statistics: 'الإحصائيات', distributions: 'توزيع الأرباح',
@@ -158,6 +169,17 @@ export const T = {
     legendPriced: 'مسعّرة بقاعدة', legendOther: 'أخرى / تجربة / مستوردة · $0', legendNeedsRule: 'غير معروفة · تحتاج قرار',
     nothingHere: 'لا يوجد شيء هنا', showingFirst: 'عرض أول', profitInFiles: 'الربح في المعاملات الجديدة', clear: 'مسح',
     saveRows: 'حفظ المعاملات', recentImports: 'آخر عمليات الاستيراد', file: 'الملف',
-    thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق'
+    thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق',
+    feeProfitPct: 'الرسوم كربح', feeCostPct: 'الرسوم كتكلفة', addRule: 'إضافة قاعدة رسوم', changeFromDate: 'تغيير ابتداءً من تاريخ', correctRule: 'تصحيح هذه القاعدة',
+    changeHint: 'الطريقة الآمنة لتغيير السعر: تنتهي القاعدة الحالية في التاريخ والوقت المحدد وتُطبق القيم الجديدة بعده. تبقى أرباح المعاملات السابقة كما هي.',
+    correctHint: 'للتصحيح فقط عند خطأ في الإدخال: تتغير القاعدة طوال مدة سريانها. يُعاد تسعير معاملات الفترة المفتوحة ولا تتأثر الفترات المقفلة.',
+    addHint: 'القاعدة الجديدة تُطبق من تاريخ بدايتها على معاملات هذا المزود وهذا النوع (والطريقة إن حُددت).',
+    anyMethod: 'أي طريقة', rule: 'القاعدة', newPriceFrom: 'السعر الجديد يسري من', editTypeRule: 'تعديل قاعدة النوع', addTypeRule: 'إضافة قاعدة نوع',
+    typeRuleHint: 'قواعد النوع تحدد طبيعة كل سطر من ملف المزود. تُفحص حسب الترتيب (الأقل أولاً) وأول تطابق يُعتمد. استخدم % كحرف بدل، مثل %card funding%.',
+    matchOn: 'المطابقة على', categoryCol: 'عمود التصنيف', typeCol: 'عمود النوع', contains: 'النص (استخدم % كبديل)', direction: 'الاتجاه', any: 'أي',
+    priority: 'الترتيب', last: 'الأخير', allProviders: 'كل المزودين', activeNow: 'سارية الآن', upcoming: 'قادمة', ended: 'منتهية', all: 'الكل',
+    search: 'بحث', searchHint: 'النوع، الطريقة، ملاحظة…', feeRulesTab: 'قواعد الرسوم', typeRulesTab: 'قواعد النوع', base: 'القاعدة الأساسية', correct: 'تصحيح',
+    endRule: 'إنهاء الآن', edit: 'تعديل', unknownType: 'غير معروف',
+    unpricedHint: 'معاملات غير معروفة (أضف قاعدة نوع) أو بدون قاعدة رسوم (أضف قاعدة رسوم). بعد حفظ القاعدة يُعاد تسعير معاملات الفترة المفتوحة تلقائياً.'
   }
 }

@@ -75,8 +75,13 @@ export default function Stats() {
             : <div className="muted">{t('nothingHere')}</div>}
         </Card>
 
-        <div className="split">
-          <Card title={t('gateways')} className="wide">
+        <Card title={t('productMix')}>
+          <Table cols={[{ k: 'line', h: t('productLine') }, ...buckets.map((b) => ({ k: b, h: bucketLabel(b), r: 1, num: 1, f: (x) => {
+            const v = mixVal(b, x.line); return <span style={{ color: v < 0 ? 'var(--warn)' : undefined }}>{usd(v, 0)}</span> } }))]}
+            rows={lines.map((l) => ({ key: l, line: l }))} empty={t('nothingHere')} />
+        </Card>
+
+          <Card title={t('gateways')}>
             <Table cols={[
               { k: 'flow', h: t('flow'), f: (x) => <span className="muted">{x.flow === 'Money In' ? t('moneyIn') : t('moneyOut')}</span> },
               { k: 'gateway', h: t('gateway') },
@@ -89,7 +94,7 @@ export default function Stats() {
           </Card>
 
           <Card title={t('customers')}>
-            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
+            <div className="grid-kpi">
               <Kpi tone="soft" label={t('allCustomers')} value={int(c.all)} />
               <Kpi tone="good" label={t('newCustomers').replace(/,.*$/, '') + ' · ' + t('inRange')} value={int(c.new)} />
               <Kpi tone="soft" label={t('active') + ' · ' + t('inRange')} value={int(c.active)} />
@@ -108,13 +113,6 @@ export default function Stats() {
               { k: 'q', h: t('status'), f: (x) => <Pill tone={x.quiet ? 'warn' : 'good'}>{x.quiet ? t('goneQuiet') : t('active')}</Pill> }
             ]} rows={(d.top || []).map((x) => ({ ...x, key: x.rank + x.email }))} empty={t('nothingHere')} />
           </Card>
-        </div>
-
-        <Card title={t('productMix')}>
-          <Table cols={[{ k: 'line', h: t('productLine') }, ...buckets.map((b) => ({ k: b, h: bucketLabel(b), r: 1, num: 1, f: (x) => {
-            const v = mixVal(b, x.line); return <span style={{ color: v < 0 ? 'var(--warn)' : undefined }}>{usd(v, 0)}</span> } }))]}
-            rows={lines.map((l) => ({ key: l, line: l }))} empty={t('nothingHere')} />
-        </Card>
       </>}</Loading>
     </Page>
   )

@@ -15,7 +15,8 @@ a{color:var(--accent)}a:hover{color:var(--accent-d)}
 .nav-links{border-top:1px solid #34323B;padding-top:14px}
 .nav-links a{display:block;padding:11px 14px;border-radius:8px;color:#C9C6D6;text-decoration:none;font-size:14px}
 .nav-links a:hover{background:#2F2D36;color:#fff}.nav-links a.on{background:linear-gradient(90deg,#7B4FE0,#5B2EE6);color:#fff;font-weight:500}
-.nav-foot{margin-top:auto;padding-top:24px;display:flex;flex-direction:column;gap:6px}
+.nav-top{display:flex;gap:6px;padding:0 0 14px}
+.nav-top .btn{flex:1 1 0;min-height:38px;padding:6px 10px;font-size:13px;text-align:center}
 .nav-btn{background:transparent;color:#C9C6D6;border:1px solid #3A3842;text-align:start}
 .page{flex:999 1 560px;min-width:0;padding:32px 40px;display:flex;flex-direction:column;gap:24px}
 @media (max-width:700px){.page{padding:20px 16px}}

@@ -11,7 +11,7 @@ async function load() {
     q(supabase.from('v_unclassified').select('txn_id', { count: 'exact', head: true }).then((r) => ({ data: r.count, error: r.error }))),
     q(supabase.from('promo_redemptions').select('redemption_id', { count: 'exact', head: true }).eq('status', 'pending').then((r) => ({ data: r.count, error: r.error }))),
     q(supabase.from('v_latest_balances').select('*')),
-    q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('name'))
+    q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('balance_order'))
   ])
   let preview = null
   if (draft) preview = (await q(supabase.rpc('period_preview', { p_period: draft.period_id })))[0]
