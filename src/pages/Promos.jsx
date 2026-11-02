@@ -5,7 +5,7 @@ import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 async function load() {
   const [camps, reds, promos] = await Promise.all([
     q(supabase.from('promo_campaigns').select('*').order('campaign_id')),
-    q(supabase.from('promo_redemptions').select('redemption_id, campaign_id, email, status, note, done_at, customer_id').order('redemption_id')),
+    q(supabase.from('promo_redemptions').select('redemption_id, campaign_id, email, status, note, done_at, customer_id, counted_period_id').order('redemption_id')),
     q(supabase.from('promo_costs').select('*').order('entry_date', { ascending: false }).limit(40))
   ])
   return { camps, reds, promos }
@@ -16,10 +16,12 @@ export default function Promos() {
   const r = useQuery(load)
   const d = r.data
   const [email, setEmail] = useState(''), [camp, setCamp] = useState(''), [msg, setMsg] = useState('')
+  const [view, setView] = useState('pending')
   const [promo, setPromo] = useState({ date: new Date().toISOString().slice(0, 10), name: '', units: 1, cost: '' })
 
-  const markDone = async (id) => {
-    const { error } = await supabase.from('promo_redemptions').update({ status: 'done', done_at: new Date().toISOString() }).eq('redemption_id', id)
+  const setStatus = async (id, status) => {
+    const { error } = await supabase.from('promo_redemptions')
+      .update({ status, done_at: status === 'done' ? new Date().toISOString() : null }).eq('redemption_id', id)
     setMsg(error ? error.message : t('saved')); r.reload()
   }
   const addEmail = async () => {
@@ -55,19 +57,30 @@ export default function Promos() {
           })}
         </div>
 
-        <Card title={`${t('waitingList')} · ${d.reds.filter((x) => x.status === 'pending').length}`}
-          right={<AdminOnly><div className="row gap8 wrap">
+        <Card title={t('waitingList')} right={<AdminOnly><div className="row gap8 wrap">
             <input className="inp" style={{ minWidth: 240, width: 'auto' }} aria-label={t('addEmail')} placeholder={t('addEmail')} value={email} onChange={(e) => setEmail(e.target.value)} />
             <select className="inp" style={{ width: 'auto' }} aria-label={t('list')} value={camp} onChange={(e) => setCamp(e.target.value)}>
               {d.camps.map((c) => <option key={c.campaign_id} value={c.campaign_id}>{c.name}</option>)}</select>
             <button className="btn" onClick={addEmail}>{t('add')}</button></div></AdminOnly>}>
+          <div className="row gap8 wrap" role="tablist">
+            {[['pending', t('waiting')], ['done', t('redeemedList')], ['cancelled', t('cancelledList')]].map(([k, l]) =>
+              <button key={k} role="tab" aria-selected={view === k} className={'btn ' + (view === k ? 'on' : '')} onClick={() => setView(k)}>
+                {l} · {int(d.reds.filter((x) => (k === 'pending' ? ['pending', 'in_progress'].includes(x.status) : x.status === k)).length)}</button>)}
+          </div>
           <Table cols={[
             { k: 'email', h: t('customer'), f: (x) => <span className="num xs">{x.email}</span> },
             { k: 'list', h: t('list'), f: (x) => d.camps.find((c) => c.campaign_id === x.campaign_id)?.name },
+            ...(view === 'done' ? [{ k: 'dt', h: t('redeemedOn'), num: 1, f: (x) => day(x.done_at, lang) }] : []),
             { k: 'note', h: t('note'), f: (x) => <span className="xs muted">{x.note}</span> },
             { k: 'known', h: t('customer'), f: (x) => <Pill tone={x.customer_id ? 'good' : 'warn'}>{x.customer_id ? '✓' : '?'}</Pill> },
-            { k: 'act', h: '', r: 1, f: (x) => <AdminOnly><button className="btn primary" onClick={() => markDone(x.redemption_id)}>{t('markDone')}</button></AdminOnly> }
-          ]} rows={d.reds.filter((x) => x.status === 'pending').map((x) => ({ ...x, key: x.redemption_id }))} />
+            { k: 'act', h: '', r: 1, f: (x) => <AdminOnly><div className="row gap8" style={{ justifyContent: 'flex-end' }}>
+              {view === 'pending' && <><button className="btn primary" onClick={() => setStatus(x.redemption_id, 'done')}>{t('markDone')}</button>
+                <button className="btn ghost" onClick={() => setStatus(x.redemption_id, 'cancelled')}>{t('removeFromList')}</button></>}
+              {view === 'done' && !x.counted_period_id && <button className="btn ghost" onClick={() => setStatus(x.redemption_id, 'pending')}>{t('undoDone')}</button>}
+              {view === 'cancelled' && <button className="btn ghost" onClick={() => setStatus(x.redemption_id, 'pending')}>{t('restore')}</button>}
+            </div></AdminOnly> }
+          ]} rows={d.reds.filter((x) => (view === 'pending' ? ['pending', 'in_progress'].includes(x.status) : x.status === view))
+                .sort((a, b) => (view === 'done' ? new Date(b.done_at) - new Date(a.done_at) : 0)).map((x) => ({ ...x, key: x.redemption_id }))} empty={t('nothingHere')} />
         </Card>
 
         <Card title={t('lessPromos')}>
