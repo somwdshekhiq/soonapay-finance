@@ -1,7 +1,8 @@
 import { useState } from 'react'
 let XLSX = null // loaded on first use, keeps other pages light
 import { supabase, useApp, useQuery, q, usd, int, day, n } from '../lib.js'
-import { Page, Card, Loading, Table, Pill } from '../ui.jsx'
+import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
+import { FeeForm, TypeForm } from './Rules.jsx'
 
 const FIELDS = ['ref', 'time', 'amount', 'fee', 'direction', 'raw_type', 'raw_category', 'desc', 'status', 'email', 'method']
 const REQUIRED = ['ref', 'time', 'amount']
@@ -20,6 +21,11 @@ async function load() {
     q(supabase.from('providers').select('provider_id, name, status')),
     q(supabase.from('import_batches').select('*').order('imported_at', { ascending: false }).limit(12))
   ])
+  const [types, methods, typeRules] = await Promise.all([
+    q(supabase.from('txn_types').select('txn_type_id, name, counts_for_profit').order('name')),
+    q(supabase.from('payment_methods').select('method_id, name').order('name')),
+    q(supabase.from('classification_rules').select('*'))
+  ])
   const last = {}
   await Promise.all(profiles.map(async (p) => {
     const filter = p.fixed_txn_type
@@ -28,7 +34,7 @@ async function load() {
     const rows = await q(filter.order('txn_time', { ascending: false }).limit(1))
     last[p.profile_id] = rows[0]?.txn_time
   }))
-  return { profiles, providers, batches, last }
+  return { profiles, providers, batches, last, types, methods, typeRules, provs: providers }
 }
 
 // ---------- file helpers ----------
@@ -106,6 +112,17 @@ function buildRows(found, profile) {
   return out
 }
 
+// Preview all rows in chunks; keep each result linked to its source row
+export async function previewRows(profileId, rows) {
+  let out = []
+  for (let i = 0; i < rows.length; i += 800) {
+    const part = rows.slice(i, i + 800)
+    const res = await q(supabase.rpc('import_preview', { p_profile: profileId, p_rows: part }))
+    out = out.concat(res.map((x) => ({ ...x, row: part[x.idx] })))
+  }
+  return out
+}
+
 async function chunked(rows, size, fn) {
   let res = []
   for (let i = 0; i < rows.length; i += size) res = res.concat(await fn(rows.slice(i, i + size)))
@@ -130,9 +147,7 @@ function Slot({ profile, provider, last, state, setState, t, lang }) {
   const preview = async (file, found) => {
     const rows = buildRows(found, profile)
     setState({ file, found, rows, busy: true, missing: [] })
-    const res = await chunked(rows, 800, (part) => q(supabase.rpc('import_preview', { p_profile: profile.profile_id, p_rows: part }))
-      .then((r) => r.map((x) => ({ ...x }))))
-    // indexes restart per chunk; rebuild by position
+    const res = await previewRows(profile.profile_id, rows)
     setState({ file, found, rows, preview: res, busy: false, missing: [] })
   }
   const remap = (f, j) => {
@@ -155,8 +170,9 @@ function Slot({ profile, provider, last, state, setState, t, lang }) {
       <div className="row between"><b>{profile.name}</b><span className="xs muted">{provider?.name}</span></div>
       <label className="btn" style={{ textAlign: 'center', borderStyle: 'dashed', background: 'var(--ground)' }}>
         {s.file ? <span className="num xs">{s.file.name}</span> : t('chooseFile')}
-        <input type="file" accept=".csv,.xlsx,.xls" onChange={onFile} style={{ position: 'absolute', left: -9999 }} />
+        <input key={s.file ? s.file.name : 'empty'} type="file" accept=".csv,.xlsx,.xls" onChange={onFile} style={{ position: 'absolute', left: -9999 }} />
       </label>
+      {s.file && <button className="btn ghost" onClick={() => setState(undefined)}>✕ {t('removeFile')}</button>}
       {!s.file && <div className="xs muted">{t('lastImport')}: {day(last, lang)}</div>}
       {s.busy && <div className="xs muted">{t('loading')}</div>}
       {s.error && <div className="alert xs">{s.error}</div>}
@@ -196,7 +212,63 @@ export default function ImportPage() {
   const setSlot = (id) => (v) => setSlots((all) => ({ ...all, [id]: v }))
 
   const filled = d ? d.profiles.filter((p) => slots[p.profile_id]?.preview) : []
-  const allPreview = filled.flatMap((p) => slots[p.profile_id].preview.map((x) => ({ ...x, file: p.name })))
+  const allPreview = filled.flatMap((p) => slots[p.profile_id].preview.map((x) => ({ ...x, file: p.name, profile: p })))
+  const [modal, setModal] = useState(null)
+  const [actMsg, setActMsg] = useState('')
+
+  // Re-run the preview of every loaded file (after a rule was added)
+  const refresh = async () => {
+    await r.reload()
+    for (const p of filled) {
+      const s0 = slots[p.profile_id]
+      const res = await previewRows(p.profile_id, s0.rows)
+      setSlots((all) => ({ ...all, [p.profile_id]: { ...all[p.profile_id], preview: res } }))
+    }
+  }
+  const ensureMethod = async (name) => {
+    if (!name) return null
+    const found = d.methods.find((m) => m.name.toLowerCase() === name.toLowerCase())
+    if (found) return found.method_id
+    const res = await supabase.from('payment_methods').insert({ name, direction: 'both' }).select('method_id').single()
+    if (res.error) throw new Error(res.error.message)
+    return res.data.method_id
+  }
+  const typeId = (name) => d.types.find((y) => y.name === name)?.txn_type_id
+  const patternFor = (x) => { const words = String(x.row?.desc || '').replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '').trim().split(/\s+/).slice(0, 4).join(' ')
+    return words ? '%' + words + '%' : null }
+  // "Mark as Other / $0": known type without a fee rule -> zero fee rule; unknown row -> type rule to Other
+  const markOther = async (x) => {
+    setActMsg('')
+    try {
+      const prov = x.profile.provider_id
+      if (x.txn_type) {
+        const method_id = x.row?.method ? await ensureMethod(x.row.method) : null
+        const res = await supabase.from('profit_rules').insert({ provider_id: prov, txn_type_id: typeId(x.txn_type), method_id, note: 'Marked as $0 from import' })
+        if (res.error) throw new Error(res.error.message)
+      } else {
+        const byCat = !patternFor(x) && x.row?.raw_category
+        const pattern = byCat ? x.row.raw_category : patternFor(x)
+        if (!pattern) throw new Error(t('error'))
+        const prio = Math.max(0, ...d.typeRules.filter((tr) => tr.provider_id === prov).map((tr) => tr.priority)) + 1
+        const res = await supabase.from('classification_rules').insert({ provider_id: prov, match_field: byCat ? 'raw_category' : 'raw_description',
+          pattern, direction_filter: 'any', txn_type_id: typeId('Other'), priority: prio })
+        if (res.error) throw new Error(res.error.message)
+      }
+      await refresh()
+    } catch (e) { setActMsg(e.message) }
+  }
+  const openRule = async (x) => {
+    setActMsg('')
+    try {
+      if (x.txn_type) {
+        const method_id = x.row?.method ? await ensureMethod(x.row.method) : null
+        await r.reload()
+        setModal({ kind: 'fee', init: { provider_id: x.profile.provider_id, txn_type_id: typeId(x.txn_type), method_id } })
+      } else {
+        setModal({ kind: 'type', init: { provider_id: x.profile.provider_id, pattern: patternFor(x) || '', match_field: patternFor(x) ? 'raw_description' : 'raw_category' } })
+      }
+    } catch (e) { setActMsg(e.message) }
+  }
   const toSave = filled.reduce((s, p) => s + slots[p.profile_id].preview.filter((x) => x.outcome !== 'duplicate' && x.outcome !== 'invalid').length, 0)
   const newProfit = allPreview.filter((x) => x.outcome === 'new').reduce((s, x) => s + n(x.profit), 0)
   const shown = allPreview.filter((x) => show === 'all' ? true : show === 'attention' ? ['needs_rule', 'invalid'].includes(x.outcome) : x.outcome === show)
@@ -227,6 +299,16 @@ export default function ImportPage() {
             last={d.last[p.profile_id]} state={slots[p.profile_id]} setState={setSlot(p.profile_id)} t={t} lang={lang} />)}
         </div>}
 
+        {actMsg && <div className="alert">{actMsg}</div>}
+        {modal && (
+          <div className="modal-back" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) setModal(null) }}>
+            <div className="modal">
+              {modal.kind === 'fee'
+                ? <FeeForm d={d} t={t} mode="add" init={modal.init} onDone={async () => { setModal(null); await refresh() }} />
+                : <TypeForm d={d} t={t} init={modal.init} onDone={async () => { setModal(null); await refresh() }} />}
+            </div>
+          </div>
+        )}
         {allPreview.length > 0 && (
           <Card title={`${t('combinedPreview')} · ${filled.length}`} right={
             <div className="row gap8 wrap" role="group">
@@ -243,7 +325,10 @@ export default function ImportPage() {
               { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => usd(x.amount) },
               { k: 'ty', h: t('txnType'), f: (x) => x.txn_type || '—' },
               { k: 'p', h: t('profit'), r: 1, num: 1, f: (x) => usd(x.profit) },
-              { k: 'o', h: t('status'), f: (x) => <Pill tone={OUTCOME[x.outcome].tone}>{t('outcome_' + x.outcome)}</Pill> }
+              { k: 'o', h: t('status'), f: (x) => <Pill tone={OUTCOME[x.outcome].tone}>{t('outcome_' + x.outcome)}</Pill> },
+              { k: 'act', h: '', f: (x) => x.outcome === 'needs_rule' ? <AdminOnly><div className="row gap8">
+                <button className="btn" onClick={() => openRule(x)}>{x.txn_type ? t('addRule') : t('addTypeRule')}</button>
+                <button className="btn ghost" onClick={() => markOther(x)}>{t('markOther')}</button></div></AdminOnly> : null }
             ]} rows={shown.slice(0, 300).map((x, i) => ({ ...x, key: x.file + i }))} rowStyle={(x) => ({ background: OUTCOME[x.outcome].bg })} empty={t('nothingHere')} />
             {shown.length > 300 && <div className="xs muted">{t('showingFirst')} 300 / {int(shown.length)}</div>}
             <div className="row between wrap gap16">

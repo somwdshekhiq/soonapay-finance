@@ -68,3 +68,7 @@ h2{margin:0;font-size:16px;font-weight:600}
 .login .logo{border-color:var(--line)}
 .login-card{width:100%;max-width:400px}
 .attn{display:flex;gap:12px;padding:14px;border-radius:8px;text-decoration:none;color:var(--ink);align-items:baseline}
+
+.modal-back{position:fixed;inset:0;background:rgba(20,18,30,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal{width:100%;max-width:760px;max-height:90vh;overflow:auto;border-radius:12px;background:var(--surface)}
+.modal .card{margin:0}

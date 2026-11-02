@@ -25,7 +25,7 @@ const nowLocal = () => { const d = new Date(Date.now() - new Date().getTimezoneO
 const statusOf = (x) => { const now = Date.now(); const f = new Date(x.valid_from).getTime(), to = new Date(x.valid_to).getTime()
   return f > now ? 'upcoming' : to <= now ? 'ended' : 'active' }
 
-function FeeForm({ d, t, init, mode, onDone }) {
+export function FeeForm({ d, t, init, mode, onDone }) {
   // mode: 'add' | 'change' | 'correct'
   const [v, setV] = useState(() => {
     const o = { provider_id: init?.provider_id ?? '', txn_type_id: init?.txn_type_id ?? '', method_id: init?.method_id ?? '', note: mode === 'change' ? '' : init?.note ?? '', from: nowLocal() }
@@ -76,7 +76,7 @@ function FeeForm({ d, t, init, mode, onDone }) {
   )
 }
 
-function TypeForm({ d, t, init, onDone }) {
+export function TypeForm({ d, t, init, onDone }) {
   const [v, setV] = useState({ provider_id: init?.provider_id ?? '', match_field: init?.match_field ?? 'raw_description', pattern: init?.pattern ?? '',
     direction_filter: init?.direction_filter ?? 'any', txn_type_id: init?.txn_type_id ?? '', priority: init?.priority ?? '' })
   const [msg, setMsg] = useState('')
