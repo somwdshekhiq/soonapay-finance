@@ -63,7 +63,7 @@ const norm = (h) => String(h ?? '').trim().toLowerCase()
 async function readFile(file) {
   XLSX = XLSX || (await import('xlsx'))
   const buf = await file.arrayBuffer()
-  const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: false })
+  const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: true })
   const sheets = wb.SheetNames.map((name) => ({ name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' }) }))
   return sheets
 }
