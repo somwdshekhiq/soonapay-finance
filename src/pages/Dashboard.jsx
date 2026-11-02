@@ -90,7 +90,7 @@ export default function Dashboard() {
           <Card title={t('profitDistributedByMonth')} className="wide">
             <Bars aria={t('profitDistributedByMonth')} items={d.monthly.map((m) => ({
               label: monthLabel(m.month, lang), sub: (n(m.distributed_usd) / 1000).toFixed(1) + 'k',
-              values: [n(m.distributed_usd)], colors: ['#7FB8AD'], title: usd(m.distributed_usd)
+              values: [n(m.distributed_usd)], colors: ['#9C86F0'], title: usd(m.distributed_usd)
             }))} />
           </Card>
           <Card title={t('needsAttention')}>

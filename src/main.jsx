@@ -34,6 +34,7 @@ function Login({ t, toggleLang }) {
   return (
     <div className="login">
       <form className="card login-card" onSubmit={submit}>
+        <img className="logo" src="/logo.png" alt="SoonaPay" />
         <div className="row between"><div><div className="brand">{t('appName')}</div><div className="muted small">{t('finance')}</div></div>
           <button type="button" className="btn ghost" onClick={toggleLang}>{t('language')}</button></div>
         <label className="field"><span>{t('email')}</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" /></label>
@@ -89,6 +90,7 @@ function App() {
     <AppCtx.Provider value={{ role: member.role, lang, t }}>
       <div className="shell">
         <nav className="nav" aria-label="Main">
+          <img className="logo" src="/logo.png" alt="SoonaPay" />
           <div className="brand">{t('appName')}</div>
           <div className="muted-inv small">{t('finance')} · {member.role === 'admin' ? t('admin') : t('viewOnly')}</div>
           <div className="nav-links">

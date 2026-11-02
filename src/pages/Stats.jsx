@@ -41,9 +41,9 @@ export default function Stats() {
   return (
     <Page title={t('statistics')} sub={t('allTime')}>
       <Loading q={r}>{d && <>
-        <Card title={t('moneyInOut')} right={<div className="legend"><span><i className="dot" style={{ background: '#0B6E5E' }} />{t('moneyIn')}</span><span><i className="dot" style={{ background: '#D9822B' }} />{t('moneyOut')}</span></div>}>
+        <Card title={t('moneyInOut')} right={<div className="legend"><span><i className="dot" style={{ background: '#5B2EE6' }} />{t('moneyIn')}</span><span><i className="dot" style={{ background: '#1E9BC8' }} />{t('moneyOut')}</span></div>}>
           <Bars aria={t('moneyInOut')} height={200} items={d.flows.map(([m, v]) => ({
-            label: monthLabel(m, lang), sub: '$' + (v.in / 1000).toFixed(1) + 'k', values: [v.in, v.out], colors: ['#0B6E5E', '#D9822B'],
+            label: monthLabel(m, lang), sub: '$' + (v.in / 1000).toFixed(1) + 'k', values: [v.in, v.out], colors: ['#5B2EE6', '#1E9BC8'],
             title: `${t('moneyIn')} ${usd(v.in, 0)} · ${t('moneyOut')} ${usd(v.out, 0)}` }))} />
         </Card>
 
@@ -54,7 +54,7 @@ export default function Stats() {
               { k: 'gateway', h: t('gateway') },
               { k: 'n', h: t('transactions'), r: 1, num: 1, f: (x) => int(x.n) },
               { k: 'vol', h: t('volume'), r: 1, num: 1, f: (x) => usd(x.vol, 0) },
-              { k: 'share', h: t('share'), f: (x) => <div className="row gap8"><div className="meter" style={{ width: 80, height: 8 }}><div style={{ width: x.share + '%', background: x.flow === 'Money In' ? '#0B6E5E' : '#D9822B' }} /></div><span className="num xs muted">{x.share.toFixed(0)}%</span></div> },
+              { k: 'share', h: t('share'), f: (x) => <div className="row gap8"><div className="meter" style={{ width: 80, height: 8 }}><div style={{ width: x.share + '%', background: x.flow === 'Money In' ? '#5B2EE6' : '#1E9BC8' }} /></div><span className="num xs muted">{x.share.toFixed(0)}%</span></div> },
               { k: 'profit', h: t('profit'), r: 1, num: 1, f: (x) => usd(x.profit) },
               { k: 'margin', h: t('margin'), r: 1, num: 1, f: (x) => pct(x.margin, 2) }
             ]} rows={d.gateways} />
@@ -69,7 +69,7 @@ export default function Stats() {
             </div>
             <div className="small">{t('top10')} <b className="num">{d.top10.toFixed(1)}%</b> · {t('top50')} <b className="num">{d.top50.toFixed(1)}%</b></div>
             <div className="meter" role="img" aria-label={`${d.top10.toFixed(1)}% / ${d.top50.toFixed(1)}%`}>
-              <div style={{ width: d.top10 + '%', background: '#0B6E5E' }} /><div style={{ width: (d.top50 - d.top10) + '%', background: '#7FB8AD' }} />
+              <div style={{ width: d.top10 + '%', background: '#5B2EE6' }} /><div style={{ width: (d.top50 - d.top10) + '%', background: '#9C86F0' }} />
             </div>
             <div className="xs muted">{t('avgFunded')} <span className="num">{usd(d.avg, 0)}</span> · {t('median')} <span className="num">{usd(d.median, 0)}</span></div>
             <Table cols={[
