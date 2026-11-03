@@ -85,20 +85,21 @@ function App() {
       <button className="btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button></div></div>
   )
 
-  const Current = (ROUTES.find(([k]) => k === route) || ROUTES[0])[1]
+  const routes = member.role === 'marketing' ? ROUTES.filter(([k]) => k === 'promos') : ROUTES
+  const Current = (routes.find(([k]) => k === route) || routes[0])[1]
   return (
     <AppCtx.Provider value={{ role: member.role, lang, t }}>
       <div className="shell">
         <nav className="nav" aria-label="Main">
           <img className="logo" src="/logo.png" alt="SoonaPay" />
           <div className="brand">{t('appName')}</div>
-          <div className="muted-inv small">{t('finance')} · {member.role === 'admin' ? t('admin') : t('viewOnly')}</div>
+          <div className="muted-inv small">{t('finance')} · {member.role === 'admin' ? t('admin') : member.role === 'marketing' ? t('marketingRole') : t('viewOnly')}</div>
           <div className="nav-top">
             <button className="btn nav-btn" onClick={toggleLang}>{t('language')}</button>
             <button className="btn nav-btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button>
           </div>
           <div className="nav-links">
-            {ROUTES.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>{t(k)}</a>)}
+            {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>{t(k)}</a>)}
           </div>
         </nav>
         <Current />
