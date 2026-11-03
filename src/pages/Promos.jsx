@@ -12,7 +12,7 @@ async function load() {
 }
 
 export default function Promos() {
-  const { t, lang } = useApp()
+  const { t, lang, role } = useApp()
   const r = useQuery(load)
   const d = r.data
   const [email, setEmail] = useState(''), [camp, setCamp] = useState(''), [msg, setMsg] = useState('')
@@ -23,6 +23,12 @@ export default function Promos() {
     const { error } = await supabase.from('promo_redemptions')
       .update({ status, done_at: status === 'done' ? new Date().toISOString() : null }).eq('redemption_id', id)
     setMsg(error ? error.message : t('saved')); r.reload()
+  }
+  const saveNote = async (x, value) => {
+    const v = value.trim()
+    if (v === (x.note || '')) return
+    const { error } = await supabase.from('promo_redemptions').update({ note: v || null }).eq('redemption_id', x.redemption_id)
+    setMsg(error ? error.message : t('saved')); if (error) r.reload(); else x.note = v || null
   }
   const addEmail = async () => {
     const list = email.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)
@@ -57,7 +63,7 @@ export default function Promos() {
           })}
         </div>
 
-        <Card title={t('waitingList')} right={<AdminOnly><div className="row gap8 wrap">
+        <Card title={t('redemptionList')} right={<AdminOnly><div className="row gap8 wrap">
             <input className="inp" style={{ minWidth: 240, width: 'auto' }} aria-label={t('addEmail')} placeholder={t('addEmail')} value={email} onChange={(e) => setEmail(e.target.value)} />
             <select className="inp" style={{ width: 'auto' }} aria-label={t('list')} value={camp} onChange={(e) => setCamp(e.target.value)}>
               {d.camps.map((c) => <option key={c.campaign_id} value={c.campaign_id}>{c.name}</option>)}</select>
@@ -71,7 +77,10 @@ export default function Promos() {
             { k: 'email', h: t('customer'), f: (x) => <span className="num xs">{x.email}</span> },
             { k: 'list', h: t('list'), f: (x) => d.camps.find((c) => c.campaign_id === x.campaign_id)?.name },
             ...(view === 'done' ? [{ k: 'dt', h: t('redeemedOn'), num: 1, f: (x) => day(x.done_at, lang) }] : []),
-            { k: 'note', h: t('note'), f: (x) => <span className="xs muted">{x.note}</span> },
+            { k: 'note', h: t('note'), f: (x) => role === 'admin'
+              ? <input key={x.redemption_id + ':' + (x.note || '')} className="inp xs" style={{ minWidth: 160 }} defaultValue={x.note || ''} placeholder={t('addNote')} aria-label={t('note') + ' · ' + x.email}
+                  onBlur={(e) => saveNote(x, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
+              : <span className="xs muted">{x.note}</span> },
             { k: 'known', h: t('customer'), f: (x) => <Pill tone={x.customer_id ? 'good' : 'warn'}>{x.customer_id ? '✓' : '?'}</Pill> },
             { k: 'act', h: '', r: 1, f: (x) => <AdminOnly><div className="row gap8" style={{ justifyContent: 'flex-end' }}>
               {view === 'pending' && <><button className="btn primary" onClick={() => setStatus(x.redemption_id, 'done')}>{t('markDone')}</button>
