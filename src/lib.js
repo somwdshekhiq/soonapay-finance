@@ -52,6 +52,13 @@ export function usd(v, dp = 2) {
   return (x < 0 ? '−$' : '$') + s
 }
 // Customer-money gap forecast: how many 14-day periods the Company reserve needs to cover the gap
+// Project a so-far amount to a full period using the daily average of the days that have data
+export function projectPeriod(soFar, prog) {
+  const days = prog ? Number(prog.days_with_data) : 0, full = prog ? Number(prog.period_days) : 14
+  if (!(days >= 1) || days >= full) return { soFar, perDay: null, days, full, projected: soFar }
+  const perDay = soFar / days
+  return { soFar, perDay, days, full, projected: Math.round(perDay * full * 100) / 100 }
+}
 export function gapForecast(gap, perPeriod) {
   if (!(gap > 0)) return null
   if (!(perPeriod > 0)) return { periods: Infinity, months: Infinity }
@@ -118,10 +125,10 @@ export const T = {
     saveRows: 'Save rows', recentImports: 'Recent imports', file: 'File',
     thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range', redeemedList: 'Redeemed', walletsHeading: 'Customer money vs wallet balances', walletCol: 'Wallet', walletsTotal: 'Total in our wallets',
     customerOwed: 'Owed to customers (user balances)', gapShort: 'Shortfall (customer money in use)', surplus: 'Covered — surplus',
-    gapForecastText: 'At the current Company reserve of {amt} per period, the shortfall closes in about {p} periods (~{m} months).',
+    gapForecastText: 'Company reserve so far {sofar} over {d} days (≈{pd}/day) → about {amt} for a full period. At that pace the shortfall closes in about {p} periods (~{m} months).', gapForecastFull: 'At a Company reserve of {amt} per period, the shortfall closes in about {p} periods (~{m} months).',
     gapNoReserve: 'With no Company reserve the shortfall does not close.', companyRate: 'Company reserve rate', companyReserve: 'Company reserve',
     companyReserveNote: 'of what is left after repayment · goes to the Company account', splitFour: 'Split equally among the 4 founders',
-    rate20Note: '20% = same as the old equal split (5 shares)', gapCloses: 'Shortfall now', closesIn: 'closes in about {p} periods (~{m} months) at this rate',
+    rate20Note: '20% = same as the old equal split (5 shares)', gapCloses: 'Shortfall now', closesIn: 'full period ≈ {amt} ({pd}/day) · closes in about {p} periods (~{m} months) at this rate',
     customRate: 'Custom %', openPeriod: 'Open period', viewPayments: 'View', approvedOn: 'approved', paidOn: 'Paid on', reference: 'Reference', txnsInPeriod: 'Profit from transactions dated in this period', txnsInPeriodHint: 'For periods paid from Excel, the paid amount followed Excel\'s running total, so this breakdown can differ slightly from the net above.', openPeriodHint: 'This is the current period. It keeps counting new transactions until you press Approve & lock at the end of the period; then it is frozen and the next period opens.', removeFile: 'Remove file', markOther: 'Mark as Other · $0', cancelledList: 'Removed', removeFromList: 'Remove', restore: 'Restore', redeemedOn: 'Redeemed on', undoDone: 'Undo',
     feeProfitPct: 'Fee as profit', feeCostPct: 'Fee as cost', addRule: 'Add fee rule', changeFromDate: 'Change from a date', correctRule: 'Correct this rule',
     changeHint: 'Safe way to change a price: the current rule ends at the chosen date/time and the new values apply from then. Past transactions keep their profit.',
@@ -184,10 +191,10 @@ export const T = {
     saveRows: 'حفظ المعاملات', recentImports: 'آخر عمليات الاستيراد', file: 'الملف',
     thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق', redeemedList: 'تم الاسترداد', walletsHeading: 'أموال العملاء مقابل أرصدة المحافظ', walletCol: 'المحفظة', walletsTotal: 'الإجمالي في محافظنا',
     customerOwed: 'المستحق للعملاء (أرصدة المستخدمين)', gapShort: 'العجز (أموال عملاء مستخدمة)', surplus: 'مغطى — فائض',
-    gapForecastText: 'باحتياطي الشركة الحالي {amt} لكل فترة، يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).',
+    gapForecastText: 'احتياطي الشركة حتى الآن {sofar} خلال {d} يوم (≈{pd}/يوم) ← حوالي {amt} لفترة كاملة. بهذا المعدل يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).', gapForecastFull: 'باحتياطي شركة {amt} لكل فترة، يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).',
     gapNoReserve: 'بدون احتياطي للشركة لن يُغلق العجز.', companyRate: 'نسبة احتياطي الشركة', companyReserve: 'احتياطي الشركة',
     companyReserveNote: 'من المتبقي بعد السداد · يذهب إلى حساب الشركة', splitFour: 'يُقسم بالتساوي على الشركاء الأربعة',
-    rate20Note: '20% = نفس التقسيم المتساوي القديم (5 حصص)', gapCloses: 'العجز الحالي', closesIn: 'يُغلق خلال حوالي {p} فترة (~{m} شهر) بهذه النسبة',
+    rate20Note: '20% = نفس التقسيم المتساوي القديم (5 حصص)', gapCloses: 'العجز الحالي', closesIn: 'الفترة الكاملة ≈ {amt} ({pd}/يوم) · يُغلق خلال حوالي {p} فترة (~{m} شهر) بهذه النسبة',
     customRate: 'نسبة أخرى %', openPeriod: 'فترة مفتوحة', viewPayments: 'عرض', approvedOn: 'اعتُمدت', paidOn: 'تاريخ الدفع', reference: 'المرجع', txnsInPeriod: 'الربح من المعاملات المؤرخة في هذه الفترة', txnsInPeriodHint: 'الفترات المدفوعة من الإكسل اعتمدت على المجموع التراكمي، لذلك قد يختلف هذا التفصيل قليلاً عن الصافي أعلاه.', openPeriodHint: 'هذه هي الفترة الحالية. تستمر في احتساب المعاملات الجديدة حتى تضغط اعتماد وإقفال الفترة في نهايتها، ثم تُجمّد وتُفتح الفترة التالية.', removeFile: 'إزالة الملف', markOther: 'اعتبارها أخرى · $0', cancelledList: 'محذوفة', removeFromList: 'حذف', restore: 'استرجاع', redeemedOn: 'تاريخ الاسترداد', undoDone: 'تراجع',
     feeProfitPct: 'الرسوم كربح', feeCostPct: 'الرسوم كتكلفة', addRule: 'إضافة قاعدة رسوم', changeFromDate: 'تغيير ابتداءً من تاريخ', correctRule: 'تصحيح هذه القاعدة',
     changeHint: 'الطريقة الآمنة لتغيير السعر: تنتهي القاعدة الحالية في التاريخ والوقت المحدد وتُطبق القيم الجديدة بعده. تبقى أرباح المعاملات السابقة كما هي.',
@@ -201,4 +208,11 @@ export const T = {
     endRule: 'إنهاء الآن', edit: 'تعديل', unknownType: 'غير معروف',
     unpricedHint: 'معاملات غير معروفة (أضف قاعدة نوع) أو بدون قاعدة رسوم (أضف قاعدة رسوم). بعد حفظ القاعدة يُعاد تسعير معاملات الفترة المفتوحة تلقائياً.'
   }
+}
+
+export function forecastText(t, pr, fc) {
+  if (!fc || !isFinite(fc.periods)) return t('gapNoReserve')
+  const key = pr.perDay === null ? 'gapForecastFull' : 'gapForecastText'
+  return t(key).replace('{sofar}', usd(pr.soFar)).replace('{d}', String(Math.round(pr.days * 10) / 10)).replace('{pd}', usd(pr.perDay || 0))
+    .replace('{amt}', usd(pr.projected)).replace('{p}', fc.periods).replace('{m}', fc.months)
 }

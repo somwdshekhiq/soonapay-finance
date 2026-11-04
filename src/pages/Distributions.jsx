@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, day, n, gapForecast } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, day, n, gapForecast, projectPeriod } from '../lib.js'
 import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
 async function load(rate, crate) {
   const draft = await q(supabase.from('distribution_periods').select('*').eq('status', 'draft').maybeSingle())
   const preview = draft ? (await q(supabase.rpc('period_preview_v2', { p_period: draft.period_id, p_rate: rate, p_company_rate: crate })))[0] : null
+  const prog = draft ? (await q(supabase.rpc('period_progress', { p_period: draft.period_id })))[0] : null
   const cm = await q(supabase.from('v_customer_money').select('*').order('snapshot_date', { ascending: false }).limit(1))
   const history = await q(supabase.from('distribution_periods').select('*').neq('status', 'draft').order('period_start', { ascending: false }))
   const lines = await q(supabase.from('v_partner_statement').select('*').in('period_id', history.slice(0, 8).map((h) => h.period_id)))
-  return { draft, preview, history, lines, gap: cm[0] && cm[0].customer_money !== null ? n(cm[0].customer_money) - n(cm[0].wallets_total) : null }
+  return { draft, preview, prog, history, lines, gap: cm[0] && cm[0].customer_money !== null ? n(cm[0].customer_money) - n(cm[0].wallets_total) : null }
 }
 
 const RATES = [0, 0.05, 0.1, 0.2, 0.5, 1]
@@ -26,7 +27,8 @@ export default function Distributions() {
   const p = d?.preview
   const effRate = rate ?? (d?.draft ? n(d.draft.repayment_rate) : 0)
   const effCrate = crate ?? (d?.draft && d.draft.company_rate !== null ? n(d.draft.company_rate) : 0.2)
-  const fc = d && p && d.gap > 0 ? gapForecast(d.gap, n(p.company_share)) : null
+  const pr = d && p ? projectPeriod(n(p.company_share), d.prog) : null
+  const fc = pr && d.gap > 0 ? gapForecast(d.gap, pr.projected) : null
 
   const act = async (fn) => {
     setBusy(true); setMsg('')
@@ -70,7 +72,7 @@ export default function Distributions() {
                     onKeyDown={(e) => { if (e.key === 'Enter') setCrate(Math.min(100, Math.max(0, Number(e.target.value))) / 100) }}
                     onBlur={(e) => { if (e.target.value !== '') setCrate(Math.min(100, Math.max(0, Number(e.target.value))) / 100) }} /></label>
               </div>
-              {d.gap > 0 && <div className="xs" style={{ color: 'var(--warn)' }}>{t('gapCloses')}: <b className="num">{usd(d.gap)}</b>{fc && isFinite(fc.periods) ? ' · ' + t('closesIn').replace('{p}', fc.periods).replace('{m}', fc.months) : ''}</div>}
+              {d.gap > 0 && <div className="xs" style={{ color: 'var(--warn)' }}>{t('gapCloses')}: <b className="num">{usd(d.gap)}</b>{fc && isFinite(fc.periods) ? ' · ' + t('closesIn').replace('{amt}', usd(pr.projected)).replace('{pd}', usd(pr.perDay ?? pr.projected / 14)).replace('{p}', fc.periods).replace('{m}', fc.months) : ''}</div>}
             </div>
             <div className="step good"><div><b>{t('toDistribute')}</b><div className="xs">{t('splitFour')} · {usd(p.founder_share)} {t('each')}</div></div><b className="num">{usd(n(p.founder_share) * 4)}</b></div>
           </Card>
