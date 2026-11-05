@@ -12,15 +12,16 @@ import Rules from './pages/Rules.jsx'
 import ImportPage from './pages/Import.jsx'
 import Notifications from './pages/Notifications.jsx'
 import Providers from './pages/Providers.jsx'
+import Transactions from './pages/Transactions.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['transactions', Transactions], ['importFiles', ImportPage], ['expenses', Expenses],
   ['distributions', Distributions], ['financePartners', Finance], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
 
 function useHash() {
-  const get = () => (window.location.hash.replace('#/', '') || 'dashboard')
+  const get = () => (window.location.hash.replace('#/', '').split('?')[0] || 'dashboard')
   const [h, set] = useState(get())
   useEffect(() => { const f = () => set(get()); window.addEventListener('hashchange', f); return () => window.removeEventListener('hashchange', f) }, [])
   return h

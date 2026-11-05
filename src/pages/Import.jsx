@@ -129,6 +129,79 @@ async function chunked(rows, size, fn) {
   return res
 }
 
+// ---------- card lists: which card belongs to which customer ----------
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+function parseCardSheets(sheets) {
+  const out = [], per = {}
+  for (const s of sheets) {
+    const rows = s.rows
+    let hr = rows.findIndex((r) => r.some((c) => /card\s*id/i.test(String(c))))
+    if (hr < 0) continue
+    const h = rows[hr].map((c) => String(c).trim().toLowerCase())
+    const ci = h.findIndex((x) => x.replace(/\s/g, '') === 'cardid')
+    const ei = h.findIndex((x) => x.includes('email'))
+    const ni = h.findIndex((x) => x.includes('name on card') || x === 'name')
+    const bi = h.findIndex((x) => x === 'brand')
+    const si = h.findIndex((x) => x.includes('status'))
+    const ui = h.findIndex((x) => x === 'user')
+    let n = 0
+    for (let i = hr + 1; i < rows.length; i++) {
+      const r = rows[i]
+      const rawRef = String(r[ci] ?? '').trim()
+      if (!rawRef) continue
+      const parts = rawRef.split(/\s+/)
+      let email = ei >= 0 ? String(r[ei] ?? '').trim() : ''
+      // Pagocards / Fyatu layout: the user's email is on the next row, under "User"
+      if (!EMAIL_RE.test(email) && ui >= 0 && rows[i + 1] && EMAIL_RE.test(String(rows[i + 1][ui] ?? '').trim()) && !String(rows[i + 1][ci] ?? '').trim()) {
+        email = String(rows[i + 1][ui]).trim(); i++
+      }
+      if (!EMAIL_RE.test(email)) continue
+      out.push({ ref: parts[0], email: email.toLowerCase(), source: s.name,
+        name: (ni >= 0 ? String(r[ni] ?? '').trim() : '') || (ui >= 0 ? String(r[ui] ?? '').trim() : ''),
+        brand: bi >= 0 ? String(r[bi] ?? '').trim() : '', status: si >= 0 ? String(r[si] ?? '').trim() : (parts[1] || '') })
+      n++
+    }
+    per[s.name] = n
+  }
+  return { rows: out, per }
+}
+function CardLists({ t, onLinked }) {
+  const [st, setSt] = useState(null)
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSt({ busy: true })
+    try { const p = parseCardSheets(await readFile(file)); setSt({ ...p, file: file.name }) } catch (err) { setSt({ error: err.message }) }
+    e.target.value = ''
+  }
+  const save = async () => {
+    setSt({ ...st, busy: true })
+    try {
+      let cards = 0, newc = 0
+      for (let i = 0; i < st.rows.length; i += 1000) {
+        const res = await q(supabase.rpc('admin_import_cards', { p_rows: st.rows.slice(i, i + 1000) }))
+        cards += res.cards; newc += res.new_customers
+      }
+      const link = await q(supabase.rpc('admin_link_customers'))
+      setSt({ done: { cards, newc, ...link } }); onLinked && onLinked()
+    } catch (err) { setSt({ ...st, busy: false, error: err.message }) }
+  }
+  return (
+    <Card title={t('cardLists')} right={<span className="xs muted">{t('cardListsNote')}</span>}>
+      <label className="field"><span>{t('cardFile')}</span><input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} /></label>
+      {st?.busy && <div className="muted">{t('loading')}</div>}
+      {st?.error && <div className="alert">{st.error}</div>}
+      {st?.per && !st.busy && <>
+        <div className="small">{Object.entries(st.per).map(([k, v]) => <span key={k} style={{ marginInlineEnd: 16 }}>{k}: <b className="num">{int(v)}</b></span>)}</div>
+        <div className="row gap8"><button className="btn primary" disabled={!st.rows.length} onClick={save}>{t('saveCards')} ({int(st.rows.length)})</button>
+          <button className="btn" onClick={() => setSt(null)}>{t('cancel')}</button></div>
+      </>}
+      {st?.done && <div className="ok">{t('cardsSaved').replace('{c}', int(st.done.cards)).replace('{n}', int(st.done.newc))
+        .replace('{l}', int(st.done.linked_by_card + st.done.linked_by_name))}</div>}
+    </Card>
+  )
+}
+
 // ---------- subscriptions (manual entry until the platform gives a file) ----------
 const PLANS = [['standard', 10], ['discounted', 5], ['trader', 0]]
 function Subscriptions({ t, lang }) {
@@ -323,6 +396,8 @@ export default function ImportPage() {
         out.push({ name: p.name, ...sum })
       } catch (e) { out.push({ name: p.name, error: e.message }) }
     }
+    // link new rows to customers through the card list and wallet names
+    try { const link = await q(supabase.rpc('admin_link_customers')); out.push({ name: t('linkedCustomers'), linked: link.linked_by_card + link.linked_by_name }) } catch {}
     setResult(out); setSlots({}); setBusy(false); r.reload()
   }
 
@@ -330,7 +405,7 @@ export default function ImportPage() {
     <Page title={t('importFiles')} sub={t('importSub')}>
       <Loading q={r}>{d && <>
         {role !== 'admin' && <div className="alert">{t('onlyAdmin')}</div>}
-        {result && <div className="ok">{result.map((x) => <div key={x.name}>{x.name}: {x.error ? x.error
+        {result && <div className="ok">{result.map((x) => <div key={x.name}>{x.name}: {x.linked !== undefined ? int(x.linked) : x.error ? x.error
           : `${int(x.inserted)} ${t('outcome_new')} · ${int(x.duplicates)} ${t('outcome_duplicate')} · ${int(x.needs_rule)} ${t('outcome_needs_rule')} · ${int(x.new_customers)} ${t('newCustomersShort')}`}</div>)}</div>}
         {role === 'admin' && <div className="grid-kpi" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 12 }}>
           {d.profiles.map((p) => <Slot key={p.profile_id} profile={p} provider={d.providers.find((x) => x.provider_id === p.provider_id)}
@@ -379,6 +454,7 @@ export default function ImportPage() {
           </Card>
         )}
 
+        {role === 'admin' && <CardLists t={t} />}
         {role === 'admin' && <Subscriptions t={t} lang={lang} />}
 
         <Card title={t('recentImports')}>
