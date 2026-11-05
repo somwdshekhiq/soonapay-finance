@@ -14,9 +14,8 @@ import Notifications from './pages/Notifications.jsx'
 import Providers from './pages/Providers.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['statistics', Stats], ['importFiles', ImportPage], ['expenses', Expenses],
-  ['distributions', Distributions], ['financePartners', Finance], ['promos', Promos], ['rules', Rules], ['providers', Providers],
-  ['notifications', Notifications]
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['distributions', Distributions], ['financePartners', Finance], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
 
