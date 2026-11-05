@@ -167,11 +167,20 @@ function parseCardSheets(sheets) {
 }
 function CardLists({ t, onLinked }) {
   const [st, setSt] = useState(null)
+  // one or more files (e.g. one export per provider); each sheet is labelled with its file name
   const onFile = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = [...(e.target.files || [])]
+    if (!files.length) return
     setSt({ busy: true })
-    try { const p = parseCardSheets(await readFile(file)); setSt({ ...p, file: file.name }) } catch (err) { setSt({ error: err.message }) }
+    try {
+      const sheets = []
+      for (const f of files) {
+        const base = f.name.replace(/\.[^.]+$/, '')
+        const ss = await readFile(f)
+        ss.forEach((sh) => sheets.push({ ...sh, name: ss.length > 1 ? `${base} · ${sh.name}` : base }))
+      }
+      setSt(parseCardSheets(sheets))
+    } catch (err) { setSt({ error: err.message }) }
     e.target.value = ''
   }
   const save = async () => {
@@ -188,7 +197,7 @@ function CardLists({ t, onLinked }) {
   }
   return (
     <Card title={t('cardLists')} right={<span className="xs muted">{t('cardListsNote')}</span>}>
-      <label className="field"><span>{t('cardFile')}</span><input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} /></label>
+      <label className="field"><span>{t('cardFile')}</span><input type="file" multiple accept=".xlsx,.xls,.csv" onChange={onFile} /></label>
       {st?.busy && <div className="muted">{t('loading')}</div>}
       {st?.error && <div className="alert">{st.error}</div>}
       {st?.per && !st.busy && <>
