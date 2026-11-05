@@ -13,10 +13,11 @@ async function load() {
     q(supabase.from('v_latest_balances').select('*')),
     q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('balance_order'))
   ])
+  const quiet = await q(supabase.rpc('gone_quiet', { p_days: 30, p_limit: 200 }))
   let preview = null, prog = null
   if (draft) [preview, prog] = (await Promise.all([q(supabase.rpc('period_preview_v2', { p_period: draft.period_id })), q(supabase.rpc('period_progress', { p_period: draft.period_id }))])).map((x) => x[0])
   return {
-    draft, preview, prog, providers, balances, unpriced, waiting,
+    draft, preview, prog, quiet, providers, balances, unpriced, waiting,
     outstanding: finance.reduce((s, r) => s + n(r.outstanding_usd), 0),
     company: company.reduce((s, r) => s + n(r.amount_usd), 0),
     monthly: monthly.slice(-13)
@@ -57,6 +58,7 @@ export default function Dashboard() {
   const { t, lang } = useApp()
   const r = useQuery(load)
   const [editing, setEditing] = useState(false)
+  const [allQuiet, setAllQuiet] = useState(false)
   const d = r.data
   return (
     <Page title={t('dashboard')} sub={d?.draft ? `${t('currentPeriod')} · ${day(d.draft.period_start, lang)} – ${day(new Date(new Date(d.draft.period_end) - 864e5), lang)}` : ''}>
@@ -96,6 +98,22 @@ export default function Dashboard() {
             </Card>
           )
         })()}
+
+        <Card title={`${t('goneQuietTitle')} · ${int(d.quiet.length)}`} right={<span className="xs muted">{t('goneQuietRule')}</span>}>
+          {d.quiet.length ? <>
+            <div className="small">{t('goneQuietLost')} <b className="num">{usd(d.quiet.reduce((s, x) => s + n(x.profit_per_month), 0), 0)}</b> {t('perMonthShort')}</div>
+            <Table cols={[
+              { k: 'c', h: t('customer'), f: (x) => <div><div className="xs">{x.username || x.email}</div>{x.username && <div className="xs muted num">{x.email}</div>}</div> },
+              { k: 'l', h: t('lastActive'), num: 1, f: (x) => day(x.last_active, lang) },
+              { k: 'q', h: t('daysQuiet'), r: 1, num: 1, f: (x) => <span style={{ color: x.days_quiet > 60 ? 'var(--warn)' : undefined }}>{int(x.days_quiet)}</span> },
+              { k: 'm', h: t('activeMonths'), r: 1, num: 1, f: (x) => int(x.active_months) },
+              { k: 'pm', h: t('profitPerMonth'), r: 1, num: 1, f: (x) => usd(x.profit_per_month) },
+              { k: 'lp', h: t('lifetimeProfit'), r: 1, num: 1, f: (x) => usd(x.lifetime_profit) },
+              { k: 'mi', h: t('moneyIn'), r: 1, num: 1, f: (x) => usd(x.money_in, 0) }
+            ]} rows={(allQuiet ? d.quiet : d.quiet.slice(0, 10)).map((x) => ({ ...x, key: x.customer_id }))} />
+            {d.quiet.length > 10 && <button className="btn ghost" onClick={() => setAllQuiet(!allQuiet)}>{allQuiet ? t('showLess') : `${t('showAll')} (${int(d.quiet.length)})`}</button>}
+          </> : <div className="muted">{t('nothingHere')}</div>}
+        </Card>
 
         <div className="split">
           <Card title={t('profitDistributedByMonth')} className="wide">

@@ -10,11 +10,15 @@ import Expenses from './pages/Expenses.jsx'
 import Promos from './pages/Promos.jsx'
 import Rules from './pages/Rules.jsx'
 import ImportPage from './pages/Import.jsx'
+import Notifications from './pages/Notifications.jsx'
+import Providers from './pages/Providers.jsx'
 
 const ROUTES = [
   ['dashboard', Dashboard], ['statistics', Stats], ['importFiles', ImportPage], ['expenses', Expenses],
-  ['distributions', Distributions], ['financePartners', Finance], ['promos', Promos], ['rules', Rules]
+  ['distributions', Distributions], ['financePartners', Finance], ['promos', Promos], ['rules', Rules], ['providers', Providers],
+  ['notifications', Notifications]
 ]
+const ADMIN_ONLY = ['notifications', 'providers']
 
 function useHash() {
   const get = () => (window.location.hash.replace('#/', '') || 'dashboard')
@@ -51,6 +55,7 @@ function App() {
   const [member, setMember] = useState(undefined)
   const [lang, setLang] = useState(() => { try { return localStorage.getItem('lang') || 'en' } catch { return 'en' } })
   const route = useHash()
+  const [unread, setUnread] = useState(0)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -63,6 +68,16 @@ function App() {
     supabase.from('app_users').select('role, language, partner_id').eq('user_id', session.user.id).maybeSingle()
       .then(({ data }) => { setMember(data || null); if (data?.language) setLang(data.language) })
   }, [session])
+
+  // unread notifications for the admin: on every page change and once a minute
+  useEffect(() => {
+    if (member?.role !== 'admin') return
+    let live = true
+    const check = () => supabase.rpc('notif_unread').then(({ data }) => { if (live && typeof data === 'number') setUnread(data) })
+    check()
+    const id = setInterval(check, 60000)
+    return () => { live = false; clearInterval(id) }
+  }, [member, route])
 
   useEffect(() => {
     document.documentElement.lang = lang
@@ -85,7 +100,8 @@ function App() {
       <button className="btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button></div></div>
   )
 
-  const routes = member.role === 'marketing' ? ROUTES.filter(([k]) => k === 'promos') : ROUTES
+  const routes = member.role === 'marketing' ? ROUTES.filter(([k]) => k === 'promos')
+    : member.role === 'admin' ? ROUTES : ROUTES.filter(([k]) => !ADMIN_ONLY.includes(k))
   const Current = (routes.find(([k]) => k === route) || routes[0])[1]
   return (
     <AppCtx.Provider value={{ role: member.role, lang, t }}>
@@ -99,10 +115,11 @@ function App() {
             <button className="btn nav-btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button>
           </div>
           <div className="nav-links">
-            {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>{t(k)}</a>)}
+            {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>
+              {k === 'notifications' ? <span className="row between">🔔 {t(k)}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span> : t(k)}</a>)}
           </div>
         </nav>
-        <Current />
+        {Current === Notifications ? <Notifications onSeen={() => setUnread(0)} /> : <Current />}
       </div>
     </AppCtx.Provider>
   )

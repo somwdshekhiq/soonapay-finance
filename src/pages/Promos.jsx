@@ -2,6 +2,42 @@ import { useState } from 'react'
 import { supabase, useApp, useQuery, q, usd, int, day, n } from '../lib.js'
 import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
+const CTYPES = ['free_card', 'discount', 'cash_reward', 'referral', 'testing', 'other']
+const todayIso = () => new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 10)
+const isOpen = (c) => c.active !== false && (!c.end_date || c.end_date >= todayIso())
+
+function CampaignForm({ init, onDone, t }) {
+  const [f, setF] = useState(init || { name: '', campaign_type: 'free_card', unit_cost_usd: '', start_date: todayIso(), end_date: '', terms: '', ad_cost_usd: 0, active: true, notes: '' })
+  const [msg, setMsg] = useState('')
+  const save = async () => {
+    if (!f.name.trim()) return setMsg(t('nameRequired'))
+    if (f.end_date && f.start_date && f.end_date < f.start_date) return setMsg(t('endBeforeStart'))
+    const row = { name: f.name.trim(), campaign_type: f.campaign_type, unit_cost_usd: Number(f.unit_cost_usd) || 0, start_date: f.start_date || null,
+      end_date: f.end_date || null, terms: f.terms || null, ad_cost_usd: Number(f.ad_cost_usd) || 0, active: !!f.active, notes: f.notes || null }
+    const res = f.campaign_id ? await supabase.from('promo_campaigns').update(row).eq('campaign_id', f.campaign_id) : await supabase.from('promo_campaigns').insert(row)
+    if (res.error) return setMsg(res.error.message)
+    onDone()
+  }
+  return (
+    <Card title={f.campaign_id ? t('editCampaign') : t('newCampaign')}>
+      <div className="form-grid">
+        <label className="field"><span>{t('name')}</span><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+        <label className="field"><span>{t('campaignType')}</span><select value={f.campaign_type} onChange={(e) => setF({ ...f, campaign_type: e.target.value })}>
+          {CTYPES.map((k) => <option key={k} value={k}>{t('ctype_' + k)}</option>)}</select></label>
+        <label className="field"><span>{t('costPerRedemption')}</span><input type="number" step="0.01" value={f.unit_cost_usd} onChange={(e) => setF({ ...f, unit_cost_usd: e.target.value })} /></label>
+        <label className="field"><span>{t('adCost')}</span><input type="number" step="0.01" value={f.ad_cost_usd} onChange={(e) => setF({ ...f, ad_cost_usd: e.target.value })} /></label>
+        <label className="field"><span>{t('startDate')}</span><input type="date" value={f.start_date || ''} onChange={(e) => setF({ ...f, start_date: e.target.value })} /></label>
+        <label className="field"><span>{t('endDate')}</span><input type="date" value={f.end_date || ''} onChange={(e) => setF({ ...f, end_date: e.target.value })} /></label>
+      </div>
+      <label className="field"><span>{t('terms')}</span><textarea className="inp" rows="3" value={f.terms || ''} placeholder={t('termsPh')} onChange={(e) => setF({ ...f, terms: e.target.value })} /></label>
+      <label className="row gap8 small"><input type="checkbox" checked={!!f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />{t('campaignOpen')}</label>
+      <div className="xs muted">{t('adCostNote')}</div>
+      {msg && <div className="alert">{msg}</div>}
+      <div className="row gap8"><button className="btn primary" onClick={save}>{t('save')}</button><button className="btn" onClick={onDone}>{t('cancel')}</button></div>
+    </Card>
+  )
+}
+
 async function load(marketing) {
   if (marketing) {
     const [camps, reds] = await Promise.all([q(supabase.rpc('redemption_campaigns')), q(supabase.rpc('redemption_list'))])
@@ -22,6 +58,7 @@ export default function Promos() {
   const d = r.data
   const [email, setEmail] = useState(''), [camp, setCamp] = useState(''), [msg, setMsg] = useState('')
   const [view, setView] = useState('pending')
+  const [cform, setCform] = useState(null)
   const [promo, setPromo] = useState({ date: new Date().toISOString().slice(0, 10), name: '', units: 1, cost: '' })
 
   const setStatus = async (id, status) => {
@@ -38,7 +75,7 @@ export default function Promos() {
   const addEmail = async () => {
     const list = email.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)
     if (!list.length) return
-    const cid = Number(camp || d.camps[0].campaign_id)
+    const cid = Number(camp || d.camps.filter(isOpen)[0]?.campaign_id)
     const { data, error } = await supabase.rpc('marketing_add_emails', { p_campaign: cid, p_emails: list })
     setMsg(error ? error.message : `${t('addedCount')}: ${data}` + (data < list.length ? ` · ${t('skippedCount')}: ${list.length - data}` : '')); setEmail(''); r.reload()
   }
@@ -48,15 +85,22 @@ export default function Promos() {
   }
 
   return (
-    <Page title={t('promos')}>
+    <Page title={t('promos')} actions={<AdminOnly><button className="btn primary" onClick={() => setCform({})}>{t('newCampaign')}</button></AdminOnly>}>
       <Loading q={r}>{d && <>
         {msg && <div className="ok">{msg}</div>}
+        {cform && <CampaignForm init={cform.init} t={t} onDone={() => { setCform(null); r.reload() }} />}
         <div className="split">
           {d.camps.map((c) => {
             const rs = d.reds.filter((x) => x.campaign_id === c.campaign_id)
             const done = rs.filter((x) => x.status === 'done').length, wait = rs.filter((x) => x.status === 'pending' || x.status === 'in_progress').length
             return (
-              <Card key={c.campaign_id} title={c.name} right={mk ? null : <span className="num small muted">{usd(c.unit_cost_usd)} {t('perCard')}</span>}>
+              <Card key={c.campaign_id} title={c.name} right={mk ? null : <div className="row gap8">
+                  <Pill tone={isOpen(c) ? 'good' : 'grey'}>{isOpen(c) ? t('open') : t('closed')}</Pill>
+                  <AdminOnly><button className="btn ghost" style={{ minHeight: 32, padding: '4px 8px' }} onClick={() => setCform({ init: c })}>{t('edit')}</button></AdminOnly></div>}>
+                {!mk && <div className="xs muted">{t('ctype_' + (c.campaign_type || 'free_card'))} · {usd(c.unit_cost_usd)} {t('perCard')}
+                  {(c.start_date || c.end_date) && <> · {c.start_date ? day(c.start_date, lang) : '…'} – {c.end_date ? day(c.end_date, lang) : t('noEnd')}</>}
+                  {n(c.ad_cost_usd) > 0 && <> · {t('adCost')} {usd(c.ad_cost_usd)}</>}</div>}
+                {c.terms && !mk && <div className="xs" style={{ whiteSpace: 'pre-wrap' }}>{c.terms}</div>}
                 <div className="meter"><div style={{ width: (100 * done) / (rs.length || 1) + '%', background: 'var(--accent)' }} /></div>
                 <div className="form-grid" style={{ gridTemplateColumns: `repeat(${mk ? 2 : 3},minmax(0,1fr))` }}>
                   <div><div className="xs muted">{t('redeemed')}</div><div className="num" style={{ fontSize: 20 }}>{int(done)}</div></div>
@@ -71,7 +115,7 @@ export default function Promos() {
         <Card title={t('redemptionList')} right={(role === 'admin' || mk) && <div className="row gap8 wrap">
             <input className="inp" style={{ minWidth: 240, width: 'auto' }} aria-label={t('addEmail')} placeholder={t('addEmail')} value={email} onChange={(e) => setEmail(e.target.value)} />
             <select className="inp" style={{ width: 'auto' }} aria-label={t('list')} value={camp} onChange={(e) => setCamp(e.target.value)}>
-              {d.camps.map((c) => <option key={c.campaign_id} value={c.campaign_id}>{c.name}</option>)}</select>
+              {d.camps.filter(isOpen).map((c) => <option key={c.campaign_id} value={c.campaign_id}>{c.name}</option>)}</select>
             <button className="btn" onClick={addEmail}>{t('add')}</button></div>}>
           <div className="row gap8 wrap" role="tablist">
             {[['pending', t('waiting')], ['done', t('redeemedList')], ['cancelled', t('cancelledList')]].map(([k, l]) =>

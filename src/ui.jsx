@@ -79,3 +79,25 @@ export const AdminOnly = ({ children }) => {
   const { role } = useApp()
   return role === 'admin' ? children : null
 }
+
+// Daily bars with a moving-average trend line (SVG, scales to the card width)
+export function Trend({ items, height = 200, aria, color = '#9C86F0', line = '#4318C4', fmt = (v) => v }) {
+  const W = 640, H = height, pad = 18
+  const max = Math.max(1, ...items.map((i) => Math.max(i.v, i.avg ?? 0)))
+  const bw = W / Math.max(items.length, 1)
+  const y = (v) => H - pad - (Math.max(v, 0) / max) * (H - pad * 2)
+  const pts = items.map((it, i) => (it.avg === null || it.avg === undefined ? null : `${(i + 0.5) * bw},${y(it.avg)}`)).filter(Boolean).join(' ')
+  const step = Math.max(1, Math.ceil(items.length / 10))
+  return (
+    <svg viewBox={`0 0 ${W} ${H + 18}`} width="100%" role="img" aria-label={aria} style={{ display: 'block' }}>
+      <line x1="0" x2={W} y1={H - pad} y2={H - pad} stroke="var(--line)" />
+      {items.map((it, i) => (
+        <rect key={i} x={i * bw + bw * 0.15} width={bw * 0.7} y={y(it.v)} height={Math.max(1, H - pad - y(it.v))} rx="2" fill={color}>
+          <title>{`${it.label}: ${fmt(it.v)}${it.avg !== null && it.avg !== undefined ? ' · 7d ' + fmt(it.avg) : ''}`}</title>
+        </rect>
+      ))}
+      {pts && <polyline points={pts} fill="none" stroke={line} strokeWidth="2.5" strokeLinejoin="round" />}
+      {items.map((it, i) => (i % step === 0 ? <text key={'l' + i} x={(i + 0.5) * bw} y={H + 12} fontSize="12" textAnchor="middle" fill="var(--muted)">{it.label}</text> : null))}
+    </svg>
+  )
+}

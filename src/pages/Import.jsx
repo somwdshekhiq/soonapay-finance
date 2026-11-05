@@ -4,8 +4,8 @@ import { supabase, useApp, useQuery, q, usd, int, day, n } from '../lib.js'
 import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 import { FeeForm, TypeForm } from './Rules.jsx'
 
-const FIELDS = ['ref', 'time', 'amount', 'fee', 'direction', 'raw_type', 'raw_category', 'desc', 'status', 'email', 'method']
-const REQUIRED = ['ref', 'time', 'amount']
+export const FIELDS = ['ref', 'time', 'amount', 'fee', 'direction', 'raw_type', 'raw_category', 'desc', 'status', 'email', 'method']
+export const REQUIRED = ['ref', 'time', 'amount']
 const OUTCOME = {
   new: { tone: 'good', bg: '#FFFFFF' },
   other: { tone: 'grey', bg: '#F6F5F9' },
@@ -66,7 +66,7 @@ function toNumber(v) {
 }
 const norm = (h) => String(h ?? '').trim().toLowerCase()
 
-async function readFile(file) {
+export async function readFile(file) {
   XLSX = XLSX || (await import('xlsx'))
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: true })
@@ -127,6 +127,44 @@ async function chunked(rows, size, fn) {
   let res = []
   for (let i = 0; i < rows.length; i += size) res = res.concat(await fn(rows.slice(i, i + size)))
   return res
+}
+
+// ---------- subscriptions (manual entry until the platform gives a file) ----------
+const PLANS = [['standard', 10], ['discounted', 5], ['trader', 0]]
+function Subscriptions({ t, lang }) {
+  const today = new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 10)
+  const [f, setF] = useState({ date: today, emails: '', plan: 'standard' })
+  const [msg, setMsg] = useState(null)
+  const r = useQuery(() => q(supabase.from('transactions').select('txn_id, txn_time, amount_usd, override_note, customers(email)').eq('provider_id', 9)
+    .order('txn_time', { ascending: false }).limit(8)))
+  const add = async () => {
+    const list = f.emails.split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean)
+    if (!list.length) return
+    let ok = 0; const bad = []
+    for (const e of list) {
+      const { error } = await supabase.rpc('admin_add_subscription', { p_date: f.date, p_email: e, p_plan: f.plan })
+      if (error) bad.push(`${e}: ${error.message}`); else ok++
+    }
+    setMsg({ ok, bad }); setF({ ...f, emails: '' }); r.reload()
+  }
+  return (
+    <Card title={t('subscriptions')} right={<span className="xs muted">{t('subsNote')}</span>}>
+      <div className="form-grid">
+        <label className="field"><span>{t('date')}</span><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
+        <label className="field"><span>{t('plan')}</span><select value={f.plan} onChange={(e) => setF({ ...f, plan: e.target.value })}>
+          {PLANS.map(([k, v]) => <option key={k} value={k}>{t('plan_' + k)} · ${v}</option>)}</select></label>
+        <label className="field" style={{ gridColumn: 'span 2' }}><span>{t('customerEmails')}</span><input value={f.emails} placeholder="name@gmail.com, …" onChange={(e) => setF({ ...f, emails: e.target.value })} /></label>
+        <div className="field"><span>&nbsp;</span><button className="btn primary" onClick={add}>{t('add')}</button></div>
+      </div>
+      {msg && <div className={msg.bad.length ? 'alert' : 'ok'}>{t('addedCount')}: {msg.ok}{msg.bad.map((b) => <div key={b} className="xs">{b}</div>)}</div>}
+      <Loading q={r}>{r.data && <Table cols={[
+        { k: 'd', h: t('date'), num: 1, f: (x) => day(x.txn_time, lang) },
+        { k: 'e', h: t('customer'), f: (x) => <span className="xs num">{x.customers?.email}</span> },
+        { k: 'p', h: t('plan'), f: (x) => <span className="xs">{x.override_note || ''}</span> },
+        { k: 'a', h: t('profit'), r: 1, num: 1, f: (x) => usd(x.amount_usd) }
+      ]} rows={r.data.map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />}</Loading>
+    </Card>
+  )
 }
 
 // ---------- one provider slot ----------
@@ -340,6 +378,8 @@ export default function ImportPage() {
             </div>
           </Card>
         )}
+
+        {role === 'admin' && <Subscriptions t={t} lang={lang} />}
 
         <Card title={t('recentImports')}>
           <Table cols={[
