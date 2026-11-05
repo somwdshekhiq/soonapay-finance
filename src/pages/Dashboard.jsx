@@ -13,7 +13,7 @@ async function load() {
     q(supabase.from('v_latest_balances').select('*')),
     q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('balance_order'))
   ])
-  const quiet = await q(supabase.rpc('gone_quiet', { p_days: 30, p_limit: 200 }))
+  const quiet = await q(supabase.rpc('gone_quiet', { p_days: 30, p_limit: 2000 }))
   let preview = null, prog = null
   if (draft) [preview, prog] = (await Promise.all([q(supabase.rpc('period_preview_v2', { p_period: draft.period_id })), q(supabase.rpc('period_progress', { p_period: draft.period_id }))])).map((x) => x[0])
   return {
