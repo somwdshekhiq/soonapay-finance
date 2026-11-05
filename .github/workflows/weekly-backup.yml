@@ -2,7 +2,7 @@ name: Weekly database backup
 
 on:
   schedule:
-    - cron: "0 22 * * 4"   # every Thursday 22:00 UTC = Friday 01:00 Riyadh
+    - cron: "0 22 * * 6"   # every Saturday 22:00 UTC = Sunday 01:00 Riyadh (after Saturday distributions)
   workflow_dispatch: {}      # "Run workflow" button for an on-demand backup
 
 jobs:
