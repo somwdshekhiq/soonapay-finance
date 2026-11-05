@@ -115,7 +115,7 @@ function App() {
           </div>
           <div className="nav-links">
             {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>
-              {k === 'notifications' ? <span className="row between">🔔 {t(k)}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span> : t(k)}</a>)}
+              {k === 'notifications' ? <span className="row between">{t(k)}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span> : t(k)}</a>)}
           </div>
         </nav>
         {Current === Notifications ? <Notifications onSeen={() => setUnread(0)} /> : <Current />}
