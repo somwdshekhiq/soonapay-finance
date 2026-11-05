@@ -197,7 +197,7 @@ function CardLists({ t, onLinked }) {
           <button className="btn" onClick={() => setSt(null)}>{t('cancel')}</button></div>
       </>}
       {st?.done && <div className="ok">{t('cardsSaved').replace('{c}', int(st.done.cards)).replace('{n}', int(st.done.newc))
-        .replace('{l}', int(st.done.linked_by_card + st.done.linked_by_name))}</div>}
+        .replace('{l}', int((st.done.linked_by_card || 0) + (st.done.linked_by_email || 0) + (st.done.linked_by_name || 0)))}</div>}
     </Card>
   )
 }
@@ -397,7 +397,7 @@ export default function ImportPage() {
       } catch (e) { out.push({ name: p.name, error: e.message }) }
     }
     // link new rows to customers through the card list and wallet names
-    try { const link = await q(supabase.rpc('admin_link_customers')); out.push({ name: t('linkedCustomers'), linked: link.linked_by_card + link.linked_by_name }) } catch {}
+    try { const link = await q(supabase.rpc('admin_link_customers')); out.push({ name: t('linkedCustomers'), linked: (link.linked_by_card || 0) + (link.linked_by_email || 0) + (link.linked_by_name || 0) }) } catch {}
     setResult(out); setSlots({}); setBusy(false); r.reload()
   }
 
