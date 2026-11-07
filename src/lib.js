@@ -222,3 +222,10 @@ export function forecastText(t, pr, fc) {
   return t(key).replace('{sofar}', usd(pr.soFar)).replace('{d}', String(Math.round(pr.days * 10) / 10)).replace('{pd}', usd(pr.perDay || 0))
     .replace('{amt}', usd(pr.projected)).replace('{p}', fc.periods).replace('{m}', fc.months)
 }
+
+// Last day covered by a period end: an end at exactly midnight (Riyadh) means "up to the day before"
+export function lastDay(end) {
+  const d = new Date(end), riyadh = new Date(d.getTime() + 3 * 36e5)
+  const midnight = riyadh.getUTCHours() === 0 && riyadh.getUTCMinutes() === 0 && riyadh.getUTCSeconds() === 0
+  return midnight ? new Date(d.getTime() - 864e5) : d
+}

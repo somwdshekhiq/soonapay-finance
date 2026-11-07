@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, day, n, gapForecast, projectPeriod } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, day, n, gapForecast, projectPeriod, lastDay } from '../lib.js'
 import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
 async function load(rate, crate) {
@@ -36,7 +36,7 @@ export default function Distributions() {
     setBusy(false)
     if (error) setMsg(error.message); else { setRate(null); setCrate(null); r.reload() }
   }
-  const endDay = (x) => day(new Date(new Date(x) - 864e5), lang)
+  const endDay = (x) => day(lastDay(x), lang)
 
   return (
     <Page title={t('distributions')} sub={d?.draft ? `${day(d.draft.period_start, lang)} – ${endDay(d.draft.period_end)}` : ''}
@@ -119,7 +119,7 @@ const ORDER = ['Company', 'Ismail', 'Mohamed', 'Mustafa', 'Moayed']
 function PeriodDetail({ period, t, lang, onClose }) {
   const r = useQuery(() => loadDetail(period), [period.period_id])
   const d = r.data
-  const endDay = (x) => day(new Date(new Date(x) - 864e5), lang)
+  const endDay = (x) => day(lastDay(x), lang)
   const byParty = {}
   ;(d?.lines || []).forEach((l) => {
     const k = l.partners?.name

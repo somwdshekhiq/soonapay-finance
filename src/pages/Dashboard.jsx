@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, gapForecast, projectPeriod, forecastText } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, gapForecast, projectPeriod, forecastText, lastDay } from '../lib.js'
 import { Page, Card, Kpi, Loading, Bars, Table, AdminOnly } from '../ui.jsx'
 
 async function load() {
@@ -61,14 +61,14 @@ export default function Dashboard() {
   const [allQuiet, setAllQuiet] = useState(false)
   const d = r.data
   return (
-    <Page title={t('dashboard')} sub={d?.draft ? `${t('currentPeriod')} · ${day(d.draft.period_start, lang)} – ${day(new Date(new Date(d.draft.period_end) - 864e5), lang)}` : ''}>
+    <Page title={t('dashboard')} sub={d?.draft ? `${t('currentPeriod')} · ${day(d.draft.period_start, lang)} – ${day(lastDay(d.draft.period_end), lang)}` : ''}>
       <Loading q={r}>{d && <>
         <div className="grid-kpi">
           <Kpi label={t('netProfit')} value={d.preview ? usd(d.preview.net) : '—'}
                note={d.preview ? `${t('draft')} · ${t('financeRepayment')} ${usd(d.preview.repayment)} · ${usd(d.preview.founder_share)} ${t('each')}` : t('noDraft')} />
           <Kpi label={t('outstandingFinance')} value={usd(d.outstanding)} note={d.draft ? `${t('repaymentRate')} ${Math.round(n(d.draft.repayment_rate) * 100)}%` : ''} />
           <Kpi label={t('companyAccount')} value={usd(d.company)} />
-          <Kpi label={t('nextDistribution')} value={d.draft ? day(new Date(new Date(d.draft.period_end) - 864e5), lang) : '—'}
+          <Kpi label={t('nextDistribution')} value={d.draft ? day(lastDay(d.draft.period_end), lang) : '—'}
                note={<a href="#/distributions">{t('distributions')}</a>} />
         </div>
 
