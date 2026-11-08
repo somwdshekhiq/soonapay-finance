@@ -9,7 +9,7 @@ async function loadPayees(periodId, admin) {
   const lines = await q(supabase.from('distribution_lines')
     .select('partner_id, line_type, amount_usd, paid_on, payout_ref, paid_amount, paid_currency, paid_to_account, proof_path, partners(name, is_company)')
     .eq('period_id', periodId))
-  const accounts = admin ? await q(supabase.from('partners').select('partner_id, payout_details')) : []
+  const accounts = admin ? await q(supabase.rpc('admin_partner_accounts')) : []
   const by = {}
   for (const l of lines) {
     const o = (by[l.partner_id] ||= { partner_id: l.partner_id, name: l.partners?.name, company: l.partners?.is_company, share: 0, repay: 0 })
