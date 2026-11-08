@@ -67,7 +67,7 @@ export function Bars({ items, height = 180, aria }) {
               {it.values.map((v, j) => (
                 <div key={j} style={{ flex: '1 1 0', maxWidth: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
                   {it.tops && <div className="bar-top num" style={{ marginBottom: 2, ...(vertical ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)' } : {}) }}>{it.tops[j]}</div>}
-                  <div className="bar" style={{ width: '100%', maxWidth: 30, height: Math.max(2, (Math.abs(v) / max) * room), background: it.colors[j] }} />
+                  <div className="bar" style={{ flex: 'none', width: '100%', maxWidth: 30, height: Math.max(2, (Math.abs(v) / max) * room), background: it.colors[j] }} />
                 </div>
               ))}
             </div>
