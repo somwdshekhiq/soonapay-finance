@@ -50,7 +50,6 @@ function PayForm({ period, payee, t, onDone }) {
         <label className="field"><span>{t('paidOn')}</span><input type="date" value={f.date} onChange={set('date')} /></label>
         <label className="field"><span>{t('amountSent')}</span><input type="number" step="0.01" value={f.amount} onChange={set('amount')} /></label>
         <label className="field"><span>{t('currency')}</span><input value={f.currency} onChange={set('currency')} placeholder="USD / SAR / SDG" /></label>
-        <label className="field"><span>{t('toAccount')}</span><input value={f.account} onChange={set('account')} /></label>
         <label className="field"><span>{t('reference')}</span><input value={f.ref} onChange={set('ref')} /></label>
         <label className="field"><span>{t('proofScreenshot')}</span><input type="file" accept="image/*,.pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
       </div>
@@ -93,7 +92,6 @@ export function Payouts({ period, onChanged }) {
         { k: 'd', h: t('due'), r: 1, num: 1, f: (x) => <span title={x.repay ? `${t('profitShare')} ${usd(x.share)} + ${t('repayment')} ${usd(x.repay)}` : ''}>{usd(x.share + x.repay)}</span> },
         { k: 'pd', h: t('paidOn'), num: 1, f: (x) => (x.paid_on ? day(x.paid_on, lang) : <span className="muted">—</span>) },
         { k: 'a', h: t('amountSent'), r: 1, num: 1, f: (x) => (x.paid_amount !== null && x.paid_amount !== undefined ? `${n(x.paid_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${x.paid_currency || ''}` : '—') },
-        { k: 'ac', h: t('toAccount'), f: (x) => <span className="xs num">{x.paid_to_account || '—'}</span> },
         { k: 'rf', h: t('reference'), f: (x) => <span className="xs num">{x.payout_ref || '—'}</span> },
         { k: 'pr', h: t('proof'), f: (x) => (x.proof_path ? <button className="btn ghost" style={{ minHeight: 32, padding: '4px 0' }} onClick={() => proof(x.proof_path)}>{t('view')}</button> : '—') },
         { k: 'x', h: '', r: 1, f: (x) => <AdminOnly><div className="row gap8" style={{ justifyContent: 'flex-end' }}>
