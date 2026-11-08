@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase, useApp, useQuery, q, usd, day, n, gapForecast, projectPeriod, lastDay } from '../lib.js'
 import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
+import { Payouts } from './Payouts.jsx'
 
 async function load(rate, crate) {
   const draft = await q(supabase.from('distribution_periods').select('*').eq('status', 'draft').maybeSingle())
@@ -9,7 +10,8 @@ async function load(rate, crate) {
   const cm = await q(supabase.from('v_customer_money').select('*').order('snapshot_date', { ascending: false }).limit(1))
   const history = await q(supabase.from('distribution_periods').select('*').neq('status', 'draft').order('period_start', { ascending: false }))
   const lines = await q(supabase.from('v_partner_statement').select('*').in('period_id', history.slice(0, 8).map((h) => h.period_id)))
-  return { draft, preview, prog, history, lines, gap: cm[0] && cm[0].customer_money !== null ? n(cm[0].customer_money) - n(cm[0].wallets_total) : null }
+  const founder = await q(supabase.from('distribution_lines').select('period_id, amount_usd').eq('partner_id', 3).eq('line_type', 'profit_share'))
+  return { draft, preview, prog, history, lines, founder, gap: cm[0] && cm[0].customer_money !== null ? n(cm[0].customer_money) - n(cm[0].wallets_total) : null }
 }
 
 const RATES = [0, 0.05, 0.1, 0.2, 0.5, 1]
@@ -90,14 +92,20 @@ export default function Distributions() {
           </Card>
         </div>}
 
+        {d.history.filter((h) => h.status === 'approved').map((h) => (
+          <Card key={h.period_id} title={`${t('paymentsFor')} ${day(h.period_start, lang)} – ${endDay(h.period_end)}`}>
+            <Payouts period={h} onChanged={() => r.reload()} />
+          </Card>
+        ))}
+
         <Card title={t('earlierPeriods')}>
           <Table cols={[
             { k: 'end', h: t('periodEnding'), num: 1, f: (x) => endDay(x.period_end) },
             { k: 'net', h: t('netProfit'), r: 1, num: 1, f: (x) => usd(x.net_profit_usd) },
             { k: 'rate', h: t('repaymentRate'), r: 1, num: 1, f: (x) => Math.round(n(x.repayment_rate) * 1000) / 10 + '%' },
             { k: 'rep', h: t('repayment'), r: 1, num: 1, f: (x) => usd(x.repayment_usd) },
-            { k: 'each', h: t('eachOfFive'), r: 1, num: 1, f: (x) => usd(n(x.distributable_usd) / 5) },
-            { k: 'st', h: t('status'), f: (x) => <Pill tone="good">{t(x.status)}</Pill> },
+            { k: 'each', h: t('eachFounder'), r: 1, num: 1, f: (x) => { const l = d.founder.find((f) => f.period_id === x.period_id); return usd(l ? l.amount_usd : n(x.distributable_usd) / 5) } },
+            { k: 'st', h: t('status'), f: (x) => <Pill tone={x.status === 'paid' ? 'good' : 'warn'}>{t(x.status)}</Pill> },
             { k: 'v', h: '', r: 1, f: (x) => <button className="btn" onClick={() => setView(x)}>{t('viewPayments')}</button> }
           ]} rows={d.history.map((h) => ({ ...h, key: h.period_id }))} />
         </Card>
@@ -146,15 +154,7 @@ function PeriodDetail({ period, t, lang, onClose }) {
               <div className="step good"><b>{t('toDistribute')}</b><b className="num">{usd(period.distributable_usd)}</b></div>
             </div>
             <h2>{t('payouts')}</h2>
-            <Table cols={[
-              { k: 'party', h: t('party') },
-              { k: 'share', h: t('profitShare'), r: 1, num: 1, f: (x) => usd(x.share) },
-              { k: 'repay', h: t('repayment'), r: 1, num: 1, f: (x) => (x.repay ? usd(x.repay) : '—') },
-              { k: 'tot', h: t('total'), r: 1, num: 1, f: (x) => <b>{usd(x.share + x.repay)}</b> },
-              { k: 'paid', h: t('paidOn'), num: 1, f: (x) => day(x.paid_on, lang) },
-              { k: 'ref', h: t('reference'), f: (x) => <span className="xs muted">{x.ref || '—'}</span> }
-            ]} rows={rows.map((x) => ({ ...x, key: x.party }))} />
-            <div className="xs muted">{t('total')}: <span className="num">{usd(lineTotal)}</span></div>
+            <Payouts period={period} />
             {period.notes && <div className="xs muted">{period.notes}</div>}
             <h2>{t('txnsInPeriod')}</h2>
             <div className="xs muted">{t('txnsInPeriodHint')}</div>
