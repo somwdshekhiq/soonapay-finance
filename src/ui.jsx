@@ -52,25 +52,29 @@ export function Loading({ q, children }) {
   return children
 }
 
-// Bar chart with the value printed above each column
+// Bar chart: a value above each bar (it.tops, one per bar) or one label above the group (it.top); it.sub = second label line
 export function Bars({ items, height = 180, aria }) {
   const max = Math.max(1, ...items.flatMap((i) => i.values.map(Math.abs)))
-  const room = height - 24
+  const vertical = items.length > 12 && items.some((i) => i.tops)
+  const room = height - (vertical ? 44 : 30)
   return (
     <div>
       <div className="bars" style={{ height }} role="img" aria-label={aria}>
         {items.map((it, i) => (
           <div key={i} className="bar-col" title={it.title}>
-            {it.top && <div className="bar-top num">{it.top}</div>}
+            {it.top && !it.tops && <div className="bar-top num">{it.top}</div>}
             <div className="bar-group">
               {it.values.map((v, j) => (
-                <div key={j} className="bar" style={{ height: Math.max(2, (Math.abs(v) / max) * room), background: it.colors[j] }} />
+                <div key={j} style={{ flex: '1 1 0', maxWidth: 30, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minWidth: 0 }}>
+                  {it.tops && <div className="bar-top num" style={{ marginBottom: 2, ...(vertical ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)' } : {}) }}>{it.tops[j]}</div>}
+                  <div className="bar" style={{ width: '100%', maxWidth: 30, height: Math.max(2, (Math.abs(v) / max) * room), background: it.colors[j] }} />
+                </div>
               ))}
             </div>
           </div>
         ))}
       </div>
-      <div className="bar-labels">{items.map((it, i) => <div key={i}>{it.label}</div>)}</div>
+      <div className="bar-labels">{items.map((it, i) => <div key={i}>{it.label}{it.sub !== undefined && <div className="num" style={{ color: 'var(--ink)', marginTop: 2 }}>{it.sub}</div>}</div>)}</div>
     </div>
   )
 }

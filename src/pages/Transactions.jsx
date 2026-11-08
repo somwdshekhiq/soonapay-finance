@@ -7,9 +7,22 @@ const iso = (d) => new Date(d).toISOString().slice(0, 10)
 const hashQuery = () => new URLSearchParams((window.location.hash.split('?')[1]) || '')
 const when = (v) => new Date(v).toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 
+// Quick periods (Riyadh dates)
+const riyadhToday = () => new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 10)
+const RANGES = ['2w', 'mtd', 'ytd', 'all', 'custom']
+function rangeDates(k) {
+  const td = riyadhToday()
+  if (k === '2w') return { from: iso(new Date(td + 'T00:00:00Z').getTime() - 13 * 864e5), to: '' }
+  if (k === 'mtd') return { from: td.slice(0, 8) + '01', to: '' }
+  if (k === 'ytd') return { from: td.slice(0, 5) + '01-01', to: '' }
+  if (k === 'all') return { from: '', to: '' }
+  return null
+}
+const EMPTY = { provider: '', type: '', direction: '', linked: 'all', profit: 'all', min: '', max: '', q: '' }
 function blankFilters() {
   const hq = hashQuery()
-  return { from: hq.get('q') ? '' : iso(Date.now() - 30 * 864e5), to: '', provider: '', type: '', direction: '', linked: 'all', profit: 'all', min: '', max: '', q: hq.get('q') || '' }
+  if (hq.get('q')) return { ...EMPTY, range: 'all', ...rangeDates('all'), q: hq.get('q') }
+  return { ...EMPTY, range: 'mtd', ...rangeDates('mtd') }
 }
 function toArgs(f, limit, offset) {
   return {
@@ -22,11 +35,12 @@ function toArgs(f, limit, offset) {
 }
 
 async function loadLists() {
-  const [providers, types] = await Promise.all([
+  const [providers, types, used] = await Promise.all([
     q(supabase.from('providers').select('provider_id, name').order('name')),
-    q(supabase.from('txn_types').select('txn_type_id, name').order('name'))
+    q(supabase.from('txn_types').select('txn_type_id, name').order('name')),
+    q(supabase.rpc('provider_txn_types'))
   ])
-  return { providers, types }
+  return { providers, types, used }
 }
 
 export default function Transactions() {
@@ -38,8 +52,14 @@ export default function Transactions() {
   const r = useQuery(() => q(supabase.rpc('txn_search', toArgs(f, PAGE, page * PAGE))), [JSON.stringify(f), page])
   const [busy, setBusy] = useState(false)
   const d = r.data
-  const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value })
+  const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value, ...(k === 'from' || k === 'to' ? { range: 'custom' } : {}),
+    ...(k === 'provider' ? { type: '' } : {}) })
   const apply = (next = draft) => { setPage(0); setF(next) }
+  const pickRange = (k) => { const dts = rangeDates(k); const next = { ...draft, range: k, ...(dts || {}) }; setDraft(next); if (dts) apply(next) }
+  // transaction types that actually occur for the chosen provider
+  const typeOptions = (lists.data?.types || []).filter((y) => !draft.provider
+    ? (lists.data?.used || []).some((u) => u.txn_type_id === y.txn_type_id)
+    : (lists.data?.used || []).some((u) => u.txn_type_id === y.txn_type_id && String(u.provider_id) === String(draft.provider)))
 
   // follow links like #/transactions?q=email
   useEffect(() => {
@@ -67,14 +87,18 @@ export default function Transactions() {
   return (
     <Page title={t('transactions')} sub={t('transactionsSub')}>
       <Card>
+        <div className="row gap8 wrap" role="group" aria-label={t('range')}>
+          {RANGES.map((k) => <button key={k} type="button" className={'btn ' + (draft.range === k ? 'on' : '')} aria-pressed={draft.range === k} onClick={() => pickRange(k)}>{t('range_' + k)}</button>)}
+        </div>
         <form className="form-grid" onSubmit={(e) => { e.preventDefault(); apply() }}>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>{t('searchTxn')}</span><input value={draft.q} onChange={set('q')} placeholder={t('searchTxnPh')} /></label>
-          <label className="field"><span>{t('from')}</span><input type="date" value={draft.from} onChange={set('from')} /></label>
-          <label className="field"><span>{t('to')}</span><input type="date" value={draft.to} onChange={set('to')} /></label>
+          {draft.range === 'custom' && <>
+            <label className="field"><span>{t('from')}</span><input type="date" value={draft.from} onChange={set('from')} /></label>
+            <label className="field"><span>{t('to')}</span><input type="date" value={draft.to} onChange={set('to')} /></label></>}
           <label className="field"><span>{t('provider')}</span><select value={draft.provider} onChange={set('provider')}>
             <option value="">{t('all')}</option>{(lists.data?.providers || []).map((p) => <option key={p.provider_id} value={p.provider_id}>{p.name}</option>)}</select></label>
           <label className="field"><span>{t('txnType')}</span><select value={draft.type} onChange={set('type')}>
-            <option value="">{t('all')}</option>{(lists.data?.types || []).map((y) => <option key={y.txn_type_id} value={y.txn_type_id}>{y.name}</option>)}</select></label>
+            <option value="">{t('all')}</option>{typeOptions.map((y) => <option key={y.txn_type_id} value={y.txn_type_id}>{y.name}</option>)}</select></label>
           <label className="field"><span>{t('direction')}</span><select value={draft.direction} onChange={set('direction')}>
             <option value="">{t('all')}</option><option value="credit">{t('credit')}</option><option value="debit">{t('debit')}</option></select></label>
           <label className="field"><span>{t('customer')}</span><select value={draft.linked} onChange={set('linked')}>
@@ -85,7 +109,7 @@ export default function Transactions() {
           <label className="field"><span>{t('maxAmount')}</span><input type="number" step="0.01" value={draft.max} onChange={set('max')} /></label>
           <div className="field"><span>&nbsp;</span><div className="row gap8">
             <button className="btn primary" type="submit">{t('apply')}</button>
-            <button className="btn" type="button" onClick={() => { const b = { ...blankFilters(), q: '', from: iso(Date.now() - 30 * 864e5) }; setDraft(b); apply(b) }}>{t('reset')}</button></div></div>
+            <button className="btn" type="button" onClick={() => { const b = { ...EMPTY, range: 'all', from: '', to: '' }; setDraft(b); apply(b) }}>{t('reset')}</button></div></div>
         </form>
       </Card>
       <Loading q={r}>{d && <>

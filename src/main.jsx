@@ -16,8 +16,8 @@ import Transactions from './pages/Transactions.jsx'
 import Backcharges from './pages/Backcharges.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['transactions', Transactions], ['backcharges', Backcharges], ['importFiles', ImportPage], ['expenses', Expenses],
-  ['distributions', Distributions], ['financePartners', Finance], ['promos', Promos], ['rules', Rules], ['providers', Providers]
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['backcharges', Backcharges], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['distributions', Distributions], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
 
