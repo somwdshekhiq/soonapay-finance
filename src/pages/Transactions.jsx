@@ -107,7 +107,7 @@ export default function Transactions() {
             { k: 'ds', h: t('description'), f: (x) => <span className="xs" title={x.raw_description || ''}>{String(x.raw_description || '').slice(0, 48)}</span> },
             { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => <span style={{ color: x.direction === 'debit' ? 'var(--muted)' : undefined }}>{x.direction === 'debit' ? '−' : ''}{usd(x.amount_usd)}</span> },
             { k: 'pf', h: t('profit'), r: 1, num: 1, f: (x) => <span style={{ color: n(x.profit) < 0 ? 'var(--warn)' : n(x.profit) > 0 ? 'var(--good)' : 'var(--muted)' }}>{usd(x.profit)}</span> }
-          ]} rows={d.rows.map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />
+          ]} rows={(d.rows || []).map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />
           {pages > 1 && <div className="row between">
             <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>← {t('previous')}</button>
             <span className="small muted">{page + 1} / {pages}</span>
