@@ -130,10 +130,10 @@ export const T = {
     saveRows: 'Save rows', recentImports: 'Recent imports', file: 'File',
     thisPeriod: 'This period', dateRange: 'Date range', from: 'From', to: 'To', apply: 'Apply', inRange: 'in range', redeemedList: 'Redeemed', walletsHeading: 'Customer money vs wallet balances', walletCol: 'Wallet', walletsTotal: 'Total in our wallets',
     customerOwed: 'Owed to customers (user balances)', gapShort: 'Shortfall (customer money in use)', surplus: 'Covered — surplus',
-    gapForecastText: 'Company reserve so far {sofar} over {d} days (≈{pd}/day) → about {amt} for a full period. At that pace the shortfall closes in about {p} periods (~{m} months).', gapForecastFull: 'At a Company reserve of {amt} per period, the shortfall closes in about {p} periods (~{m} months).', gapLastPeriod: 'Last distribution ({dates}) put {amt} into the Company account. At that pace the shortfall closes in about {p} periods (~{m} months).',
+    gapForecastText: 'Company reserve so far {sofar} over {d} days (≈{pd}/day) → about {amt} for a full period. At that pace the shortfall closes in about {p} periods (~{m} months).', gapForecastFull: 'At a Company reserve of {amt} per period, the shortfall closes in about {p} periods (~{m} months).', gapLastPeriod: 'Last distribution ({dates}) put {amt} into the Company account (≈{mi}/month). Recurring expenses take {rec}/month, leaving ≈{left}/month → the shortfall closes in about {m} months.', gapNeverCloses: 'Last distribution put {amt} into the Company account (≈{mi}/month), but recurring expenses take {rec}/month — at this pace the shortfall does not close.',
     gapNoReserve: 'With no Company reserve the shortfall does not close.', companyRate: 'Company reserve rate', companyReserve: 'Company reserve',
     companyReserveNote: 'of what is left after repayment · goes to the Company account', splitFour: 'Split equally among the 4 founders',
-    rate20Note: '20% = same as the old equal split (5 shares)', gapCloses: 'Shortfall now', closesIn: 'full period ≈ {amt} ({pd}/day) · closes in about {p} periods (~{m} months) at this rate', closesInLast: 'based on the last distribution: {amt} per period at this rate · closes in about {p} periods (~{m} months)',
+    rate20Note: '20% = same as the old equal split (5 shares)', gapCloses: 'Shortfall now', closesIn: 'full period ≈ {amt} ({pd}/day) · closes in about {p} periods (~{m} months) at this rate', closesInLast: 'based on the last distribution: {amt} per period at this rate (≈{mi}/month) − recurring {rec}/month = {left}/month · closes in about {m} months', closesNever: 'based on the last distribution: {amt} per period at this rate (≈{mi}/month) is less than recurring expenses {rec}/month · the shortfall does not close',
     customRate: 'Custom %', openPeriod: 'Open period', viewPayments: 'View', approvedOn: 'approved', paidOn: 'Paid on', reference: 'Reference', txnsInPeriod: 'Profit from transactions dated in this period', txnsInPeriodHint: 'For periods paid from Excel, the paid amount followed Excel\'s running total, so this breakdown can differ slightly from the net above.', openPeriodHint: 'This is the current period. It keeps counting new transactions until you press Approve & lock at the end of the period; then it is frozen and the next period opens.', removeFile: 'Remove file', markOther: 'Mark as Other · $0', cancelledList: 'Removed', removeFromList: 'Remove', restore: 'Restore', redeemedOn: 'Redeemed on', undoDone: 'Undo',
     feeProfitPct: 'Fee as profit', feeCostPct: 'Fee as cost', addRule: 'Add fee rule', changeFromDate: 'Change from a date', correctRule: 'Correct this rule',
     changeHint: 'Safe way to change a price: the current rule ends at the chosen date/time and the new values apply from then. Past transactions keep their profit.',
@@ -201,10 +201,10 @@ export const T = {
     saveRows: 'حفظ المعاملات', recentImports: 'آخر عمليات الاستيراد', file: 'الملف',
     thisPeriod: 'هذه الفترة', dateRange: 'نطاق تاريخ', from: 'من', to: 'إلى', apply: 'تطبيق', inRange: 'في النطاق', redeemedList: 'تم الاسترداد', walletsHeading: 'أموال العملاء مقابل أرصدة المحافظ', walletCol: 'المحفظة', walletsTotal: 'الإجمالي في محافظنا',
     customerOwed: 'المستحق للعملاء (أرصدة المستخدمين)', gapShort: 'العجز (أموال عملاء مستخدمة)', surplus: 'مغطى — فائض',
-    gapForecastText: 'احتياطي الشركة حتى الآن {sofar} خلال {d} يوم (≈{pd}/يوم) ← حوالي {amt} لفترة كاملة. بهذا المعدل يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).', gapForecastFull: 'باحتياطي شركة {amt} لكل فترة، يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).', gapLastPeriod: 'آخر توزيع ({dates}) أضاف {amt} إلى حساب الشركة. بهذا المعدل يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).',
+    gapForecastText: 'احتياطي الشركة حتى الآن {sofar} خلال {d} يوم (≈{pd}/يوم) ← حوالي {amt} لفترة كاملة. بهذا المعدل يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).', gapForecastFull: 'باحتياطي شركة {amt} لكل فترة، يُغلق العجز خلال حوالي {p} فترة (~{m} شهر).', gapLastPeriod: 'آخر توزيع ({dates}) أضاف {amt} إلى حساب الشركة (≈{mi}/شهر). المصروفات المتكررة {rec}/شهر، يتبقى ≈{left}/شهر ← يُغلق العجز خلال حوالي {m} شهر.', gapNeverCloses: 'آخر توزيع أضاف {amt} إلى حساب الشركة (≈{mi}/شهر)، لكن المصروفات المتكررة {rec}/شهر — بهذا المعدل لن يُغلق العجز.',
     gapNoReserve: 'بدون احتياطي للشركة لن يُغلق العجز.', companyRate: 'نسبة احتياطي الشركة', companyReserve: 'احتياطي الشركة',
     companyReserveNote: 'من المتبقي بعد السداد · يذهب إلى حساب الشركة', splitFour: 'يُقسم بالتساوي على الشركاء الأربعة',
-    rate20Note: '20% = نفس التقسيم المتساوي القديم (5 حصص)', gapCloses: 'العجز الحالي', closesIn: 'الفترة الكاملة ≈ {amt} ({pd}/يوم) · يُغلق خلال حوالي {p} فترة (~{m} شهر) بهذه النسبة', closesInLast: 'حسب آخر توزيع: {amt} لكل فترة بهذه النسبة · يُغلق خلال حوالي {p} فترة (~{m} شهر)',
+    rate20Note: '20% = نفس التقسيم المتساوي القديم (5 حصص)', gapCloses: 'العجز الحالي', closesIn: 'الفترة الكاملة ≈ {amt} ({pd}/يوم) · يُغلق خلال حوالي {p} فترة (~{m} شهر) بهذه النسبة', closesInLast: 'حسب آخر توزيع: {amt} لكل فترة بهذه النسبة (≈{mi}/شهر) − المتكررة {rec}/شهر = {left}/شهر · يُغلق خلال حوالي {m} شهر', closesNever: 'حسب آخر توزيع: {amt} لكل فترة بهذه النسبة (≈{mi}/شهر) أقل من المصروفات المتكررة {rec}/شهر · لن يُغلق العجز',
     customRate: 'نسبة أخرى %', openPeriod: 'فترة مفتوحة', viewPayments: 'عرض', approvedOn: 'اعتُمدت', paidOn: 'تاريخ الدفع', reference: 'المرجع', txnsInPeriod: 'الربح من المعاملات المؤرخة في هذه الفترة', txnsInPeriodHint: 'الفترات المدفوعة من الإكسل اعتمدت على المجموع التراكمي، لذلك قد يختلف هذا التفصيل قليلاً عن الصافي أعلاه.', openPeriodHint: 'هذه هي الفترة الحالية. تستمر في احتساب المعاملات الجديدة حتى تضغط اعتماد وإقفال الفترة في نهايتها، ثم تُجمّد وتُفتح الفترة التالية.', removeFile: 'إزالة الملف', markOther: 'اعتبارها أخرى · $0', cancelledList: 'محذوفة', removeFromList: 'حذف', restore: 'استرجاع', redeemedOn: 'تاريخ الاسترداد', undoDone: 'تراجع',
     feeProfitPct: 'الرسوم كربح', feeCostPct: 'الرسوم كتكلفة', addRule: 'إضافة قاعدة رسوم', changeFromDate: 'تغيير ابتداءً من تاريخ', correctRule: 'تصحيح هذه القاعدة',
     changeHint: 'الطريقة الآمنة لتغيير السعر: تنتهي القاعدة الحالية في التاريخ والوقت المحدد وتُطبق القيم الجديدة بعده. تبقى أرباح المعاملات السابقة كما هي.',
@@ -242,4 +242,20 @@ export async function lastClosedPeriod() {
   const lines = await q(supabase.from('distribution_lines').select('amount_usd, partners!inner(is_company)')
     .eq('period_id', per[0].period_id).eq('line_type', 'profit_share').eq('partners.is_company', true))
   return { ...per[0], company: lines.reduce((s, x) => s + n(x.amount_usd), 0) }
+}
+
+// Active recurring expenses per month, in USD (using the latest FX rate for each currency)
+export async function monthlyRecurring() {
+  const [rec, fx] = await Promise.all([
+    q(supabase.from('recurring_expenses').select('amount_orig, currency').eq('active', true)),
+    q(supabase.from('fx_rates').select('currency, usd_per_unit, rate_date').order('rate_date', { ascending: false }))
+  ])
+  const rate = (c) => (String(c).trim() === 'USD' ? 1 : n(fx.find((f) => f.currency === String(c).trim())?.usd_per_unit))
+  return rec.reduce((s, r) => s + n(r.amount_orig) * rate(r.currency), 0)
+}
+// Months to close the gap when the Company gets `perPeriod` every 14 days and pays `recurring` a month
+export const PERIODS_PER_MONTH = 30.44 / 14
+export function gapMonths(gap, perPeriod, recurring) {
+  const monthlyIn = perPeriod * PERIODS_PER_MONTH, left = monthlyIn - recurring
+  return { monthlyIn, left, months: left > 0 ? Math.ceil((gap / left) * 10) / 10 : Infinity }
 }

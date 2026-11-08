@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, gapForecast, lastDay, lastClosedPeriod } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, lastDay, lastClosedPeriod, monthlyRecurring, gapMonths } from '../lib.js'
 import { Page, Card, Kpi, Loading, Bars, Table, AdminOnly } from '../ui.jsx'
 
 async function load() {
@@ -14,11 +14,11 @@ async function load() {
     q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('balance_order'))
   ])
   const quiet = await q(supabase.rpc('gone_quiet', { p_days: 30, p_limit: 2000 }))
-  const lastPer = await lastClosedPeriod()
+  const [lastPer, recurring] = await Promise.all([lastClosedPeriod(), monthlyRecurring()])
   let preview = null, prog = null
   if (draft) [preview, prog] = (await Promise.all([q(supabase.rpc('period_preview_v2', { p_period: draft.period_id })), q(supabase.rpc('period_progress', { p_period: draft.period_id }))])).map((x) => x[0])
   return {
-    draft, preview, prog, quiet, lastPer, providers, balances, unpriced, waiting,
+    draft, preview, prog, quiet, lastPer, recurring, providers, balances, unpriced, waiting,
     outstanding: finance.reduce((s, r) => s + n(r.outstanding_usd), 0),
     company: company.reduce((s, r) => s + n(r.amount_usd), 0),
     monthly: monthly.slice(-13)
@@ -80,7 +80,9 @@ export default function Dashboard() {
           const owed = w ? n(w.amount_usd) : null
           const gap = owed === null ? null : owed - total
           const reserve = d.lastPer ? d.lastPer.company : 0
-          const fc = gap > 0 ? gapForecast(gap, reserve) : null
+          const gm = gapMonths(gap, reserve, d.recurring)
+          const fill = (k) => t(k).replace('{dates}', d.lastPer ? `${day(d.lastPer.period_start, lang)} – ${day(lastDay(d.lastPer.period_end), lang)}` : '')
+            .replace('{amt}', usd(reserve)).replace('{mi}', usd(gm.monthlyIn, 0)).replace('{rec}', usd(d.recurring, 0)).replace('{left}', usd(gm.left, 0)).replace('{m}', gm.months)
           return (
             <Card title={t('walletsHeading')} right={<AdminOnly><button className="btn" onClick={() => setEditing(true)}>{t('updateBalances')}</button></AdminOnly>}>
               {editing && <BalanceForm providers={d.providers} t={t} onDone={() => { setEditing(false); r.reload() }} />}
@@ -88,9 +90,7 @@ export default function Dashboard() {
                 <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? `${t('asOf')} ${day(w.snapshot_date, lang)}` : ''} />
                 <Kpi tone="soft" label={t('walletsTotal')} value={usd(total)} note={rows.filter((x) => !x.b).length ? `${rows.filter((x) => !x.b).length} × ${t('notEnteredYet')}` : ''} />
                 <Kpi tone={gap > 0 ? 'warn' : 'good'} label={gap > 0 ? t('gapShort') : t('surplus')} value={gap === null ? '—' : usd(Math.abs(gap))}
-                     note={gap > 0 ? (fc && isFinite(fc.periods) && d.lastPer
-                       ? t('gapLastPeriod').replace('{dates}', `${day(d.lastPer.period_start, lang)} – ${day(lastDay(d.lastPer.period_end), lang)}`).replace('{amt}', usd(reserve)).replace('{p}', fc.periods).replace('{m}', fc.months)
-                       : t('gapNoReserve')) : ''} />
+                     note={gap > 0 ? (!d.lastPer ? t('gapNoReserve') : isFinite(gm.months) ? fill('gapLastPeriod') : fill('gapNeverCloses')) : ''} />
               </div>
               <Table cols={[
                 { k: 'name', h: t('walletCol') },
