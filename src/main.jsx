@@ -57,6 +57,13 @@ function App() {
   const [lang, setLang] = useState(() => { try { return localStorage.getItem('lang') || 'en' } catch { return 'en' } })
   const route = useHash()
   const [unread, setUnread] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
+  // phone menu: close whenever a page is chosen, and with Escape
+  useEffect(() => { setMenuOpen(false); window.scrollTo(0, 0) }, [route])
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -107,7 +114,15 @@ function App() {
   return (
     <AppCtx.Provider value={{ role: member.role, lang, t }}>
       <div className="shell">
-        <nav className="nav" aria-label="Main">
+        <header className="topbar">
+          <button type="button" className="burger" aria-label={menuOpen ? t('closeMenu') : t('menu')} aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>
+            <span /><span /><span />
+          </button>
+          <div className="topbar-title">{t((routes.find(([k]) => k === route) || routes[0])[0])}</div>
+          {unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}
+        </header>
+        {menuOpen && <div className="nav-scrim" onClick={() => setMenuOpen(false)} />}
+        <nav id="main-nav" className={'nav' + (menuOpen ? ' open' : '')} aria-label="Main">
           <img className="logo" src="/logo.png" alt="SoonaPay" />
           <div className="brand">{t('appName')}</div>
           <div className="muted-inv small">{t('finance')} · {member.role === 'admin' ? t('admin') : member.role === 'marketing' ? t('marketingRole') : t('viewOnly')}</div>
@@ -116,7 +131,7 @@ function App() {
             <button className="btn nav-btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button>
           </div>
           <div className="nav-links">
-            {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''}>
+            {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''} onClick={() => setMenuOpen(false)}>
               {k === 'notifications' ? <span className="row between">{t(k)}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span> : t(k)}</a>)}
           </div>
         </nav>

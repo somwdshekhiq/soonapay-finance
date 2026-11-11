@@ -20,6 +20,18 @@ a{color:var(--accent)}a:hover{color:var(--accent-d)}
 .nav-btn{background:transparent;color:#C9C6D6;border:1px solid #3A3842;text-align:start}
 .page{flex:999 1 560px;min-width:0;padding:32px 40px;display:flex;flex-direction:column;gap:24px}
 @media (max-width:700px){.page{padding:20px 16px}}
+.topbar,.nav-scrim{display:none}
+@media (max-width:780px){
+  .shell{display:block}
+  .topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:30;height:56px;padding:0 12px;background:var(--nav);color:#fff}
+  .topbar-title{flex:1;font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .burger{width:44px;height:44px;border:1px solid #3A3842;border-radius:10px;background:transparent;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;cursor:pointer;padding:0}
+  .burger span{display:block;width:20px;height:2px;background:#fff;border-radius:2px}
+  .nav{display:none;position:fixed;z-index:40;top:56px;inset-inline:0;bottom:0;overflow-y:auto;max-width:none;box-shadow:0 12px 24px rgba(0,0,0,.35)}
+  .nav.open{display:flex}
+  .nav-scrim{display:block;position:fixed;z-index:35;inset:56px 0 0 0;background:rgba(0,0,0,.4)}
+  .nav-links a{padding:14px}
+}
 .page-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;background:var(--band);color:#fff;border-radius:12px;padding:16px 24px}
 .page-head .muted{color:#D9D4EC}
 .page-head h1{margin:2px 0 0}
