@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { supabase, AppCtx, T } from './lib.js'
+import { PageGuard } from './ui.jsx'
 import './styles.css'
 import Dashboard from './pages/Dashboard.jsx'
 import Stats from './pages/Stats.jsx'
@@ -20,6 +21,14 @@ const ROUTES = [
   ['distributions', Distributions], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
+// menu sections (notifications sits above them, on its own)
+const GROUPS = [
+  ['navOverview', ['dashboard', 'statistics']],
+  ['navTransactions', ['importFiles', 'transactions', 'backcharges']],
+  ['navCustomers', ['promos']],
+  ['navPartners', ['distributions', 'financePartners', 'expenses']],
+  ['navSettings', ['rules', 'providers']]
+]
 
 function useHash() {
   const get = () => (window.location.hash.replace('#/', '').split('?')[0] || 'dashboard')
@@ -110,7 +119,8 @@ function App() {
 
   const routes = member.role === 'marketing' ? ROUTES.filter(([k]) => k === 'promos')
     : member.role === 'admin' ? ROUTES : ROUTES.filter(([k]) => !ADMIN_ONLY.includes(k))
-  const Current = (routes.find(([k]) => k === route) || routes[0])[1]
+  const [active, Current] = routes.find(([k]) => k === route) || routes[0]
+  const has = (k) => routes.some(([x]) => x === k)
   return (
     <AppCtx.Provider value={{ role: member.role, lang, t }}>
       <div className="shell">
@@ -118,8 +128,8 @@ function App() {
           <button type="button" className="burger" aria-label={menuOpen ? t('closeMenu') : t('menu')} aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>
             <span /><span /><span />
           </button>
-          <div className="topbar-title">{t((routes.find(([k]) => k === route) || routes[0])[0])}</div>
-          {unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}
+          <div className="topbar-title">{t(active)}</div>
+          {unread > 0 && <a href="#/notifications" className="badge" style={{ textDecoration: 'none' }} aria-label={`${t('notifications')}: ${unread} ${t('unread')}`}>{unread}</a>}
         </header>
         {menuOpen && <div className="nav-scrim" onClick={() => setMenuOpen(false)} />}
         <nav id="main-nav" className={'nav' + (menuOpen ? ' open' : '')} aria-label="Main">
@@ -131,11 +141,23 @@ function App() {
             <button className="btn nav-btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button>
           </div>
           <div className="nav-links">
-            {routes.map(([k]) => <a key={k} href={'#/' + k} className={route === k ? 'on' : ''} onClick={() => setMenuOpen(false)}>
-              {k === 'notifications' ? <span className="row between">{t(k)}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span> : t(k)}</a>)}
+            {has('notifications') && <a href="#/notifications" className={active === 'notifications' ? 'on' : ''} onClick={() => setMenuOpen(false)}>
+              <span className="row between">{t('notifications')}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span></a>}
+            {GROUPS.map(([g, keys]) => {
+              const mine = keys.filter(has)
+              if (!mine.length) return null
+              return (
+                <div key={g} className="nav-group" role="group" aria-label={t(g)}>
+                  {routes.length > 1 && <div className="nav-group-h">{t(g)}</div>}
+                  {mine.map((k) => <a key={k} href={'#/' + k} className={active === k ? 'on' : ''} onClick={() => setMenuOpen(false)}>{t(k)}</a>)}
+                </div>
+              )
+            })}
           </div>
         </nav>
-        {Current === Notifications ? <Notifications onSeen={() => setUnread(0)} /> : <Current />}
+        <PageGuard key={active} title={t('pageError')} retry={t('tryAgain')}>
+          {Current === Notifications ? <Notifications onSeen={() => setUnread(0)} /> : <Current />}
+        </PageGuard>
       </div>
     </AppCtx.Provider>
   )

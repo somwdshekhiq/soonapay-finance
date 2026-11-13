@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase, useApp, useQuery, q, usd, int, pct, monthLabel, day, n } from '../lib.js'
-import { Page, Card, Kpi, Loading, Bars, Table, Pill, Trend } from '../ui.jsx'
+import { Page, Card, Kpi, Loading, Bars, Table, Pill, Trend, Tabs } from '../ui.jsx'
 
 const IN = '#5B2EE6', OUT = '#1E9BC8', SOFT = '#9C86F0'
 const toIso = (d) => new Date(d).toISOString().slice(0, 10)
@@ -19,8 +19,8 @@ async function load(range) {
     from = '2024-01-01T00:00:00+03:00'
     to = new Date(Date.now() + 864e5).toISOString()
   }
-  // daily view: whole range when short, otherwise the last 60 days of it
-  const dFrom = new Date(to) - new Date(from) > 92 * 864e5 ? new Date(new Date(to).getTime() - 60 * 864e5).toISOString() : from
+  // daily view: whole range when short, otherwise the last 30 days of it
+  const dFrom = new Date(to) - new Date(from) > 45 * 864e5 ? new Date(new Date(to).getTime() - 31 * 864e5).toISOString() : from
   const [s, daily, mix, draft] = await Promise.all([
     q(supabase.rpc('stats_range', { p_from: from, p_to: to })),
     q(supabase.rpc('stats_daily', { p_from: dFrom, p_to: to })),
@@ -42,6 +42,7 @@ export default function Stats() {
   const [draft, setDraft] = useState({ from: range.from, to: range.to })
   const r = useQuery(() => load(range), [range.mode, range.from, range.to])
   const d = r.data
+  const [tab, setTab] = useState('profit')
 
   // gateways with share of their flow and margin
   const flowTot = {}
@@ -79,16 +80,17 @@ export default function Stats() {
           </div>
         </Card>
       )}
+      <Tabs value={tab} onChange={setTab} label={t('statistics')} items={[['profit', t('tabProfit')], ['customers', t('tabCustomers')], ['products', t('tabProducts')], ['gateways', t('tabGateways')]]} />
       <Loading q={r}>{d && <>
-        <Card title={t('moneyInOut')} right={<div className="legend"><span><i className="dot" style={{ background: IN }} />{t('moneyIn')}</span><span><i className="dot" style={{ background: OUT }} />{t('moneyOut')}</span></div>}>
+        {tab === 'profit' && <Card title={t('moneyInOut')} right={<div className="legend"><span><i className="dot" style={{ background: IN }} />{t('moneyIn')}</span><span><i className="dot" style={{ background: OUT }} />{t('moneyOut')}</span></div>}>
           {flows.length ? <Bars aria={t('moneyInOut')} height={210} items={flows.map((m) => ({
             label: d.bucket === 'day' ? day(m.k, lang).slice(0, 6) : monthLabel(m.k, lang),
             tops: [kfmt(m.in), kfmt(m.out)],
             values: [n(m.in), n(m.out)], colors: [IN, OUT], title: `${t('moneyIn')} ${usd(m.in, 0)} · ${t('moneyOut')} ${usd(m.out, 0)}` }))} />
             : <div className="muted">{t('nothingHere')}</div>}
-        </Card>
+        </Card>}
 
-        {d.daily.length > 1 && (() => {
+        {tab === 'profit' && d.daily.length > 1 && (() => {
           const vals = d.daily.map((x) => n(x.profit))
           const items = d.daily.map((x, i) => {
             const win = vals.slice(Math.max(0, i - 6), i + 1)
@@ -113,7 +115,7 @@ export default function Stats() {
           )
         })()}
 
-        {d.custMix.length > 0 && (
+        {tab === 'customers' && d.custMix.length > 0 && (
           <Card title={t('newVsReturning')} right={<div className="legend"><span><i className="dot" style={{ background: IN }} />{t('newCust')}</span><span><i className="dot" style={{ background: OUT }} />{t('returningCust')}</span></div>}>
             <Bars aria={t('newVsReturning')} height={190} items={d.custMix.map((m) => ({
               label: monthLabel(m.month, lang), tops: [int(m.new_customers), int(m.returning_customers)], sub: int(n(m.new_customers) + n(m.returning_customers)),
@@ -123,13 +125,13 @@ export default function Stats() {
           </Card>
         )}
 
-        <Card title={t('productMix')}>
+        {tab === 'products' && <Card title={t('productMix')}>
           <Table cols={[{ k: 'line', h: t('productLine') }, ...buckets.map((b) => ({ k: b, h: bucketLabel(b), r: 1, num: 1, f: (x) => {
             const v = mixVal(b, x.line); return <span style={{ color: v < 0 ? 'var(--warn)' : undefined }}>{usd(v, 0)}</span> } }))]}
             rows={lines.map((l) => ({ key: l, line: l }))} empty={t('nothingHere')} />
-        </Card>
+        </Card>}
 
-          <Card title={t('gateways')}>
+          {tab === 'gateways' && <Card title={t('gateways')}>
             <Table cols={[
               { k: 'flow', h: t('flow'), f: (x) => <span className="muted">{x.flow === 'Money In' ? t('moneyIn') : t('moneyOut')}</span> },
               { k: 'gateway', h: t('gateway') },
@@ -139,9 +141,9 @@ export default function Stats() {
               { k: 'profit', h: t('profit'), r: 1, num: 1, f: (x) => usd(x.profit) },
               { k: 'margin', h: t('margin'), r: 1, num: 1, f: (x) => pct(x.margin, 2) }
             ]} rows={gateways.map((g) => ({ ...g, key: g.flow + g.gateway }))} empty={t('nothingHere')} />
-          </Card>
+          </Card>}
 
-          <Card title={t('customers')}>
+          {tab === 'customers' && <Card title={t('customers')}>
             <div className="grid-kpi">
               <Kpi tone="soft" label={t('allCustomers')} value={int(c.all)} />
               <Kpi tone="good" label={t('newCustomers').replace(/,.*$/, '') + ' · ' + t('inRange')} value={int(c.new)} />
@@ -160,7 +162,7 @@ export default function Stats() {
               { k: 's', h: t('share'), r: 1, num: 1, f: (x) => pct(c.total_in ? (100 * n(x.mi)) / n(c.total_in) : 0) },
               { k: 'q', h: t('status'), f: (x) => <Pill tone={x.quiet ? 'warn' : 'good'}>{x.quiet ? t('goneQuiet') : t('active')}</Pill> }
             ]} rows={(d.top || []).map((x) => ({ ...x, key: x.rank + x.email }))} empty={t('nothingHere')} />
-          </Card>
+          </Card>}
       </>}</Loading>
     </Page>
   )

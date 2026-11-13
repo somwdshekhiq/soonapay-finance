@@ -1,7 +1,7 @@
 import { useState } from 'react'
 let XLSX = null // loaded on first use, keeps other pages light
 import { supabase, useApp, useQuery, q, usd, int, day, n } from '../lib.js'
-import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
+import { Page, Card, Loading, Table, Pill, AdminOnly, Tabs } from '../ui.jsx'
 import { FeeForm, TypeForm } from './Rules.jsx'
 
 export const FIELDS = ['ref', 'time', 'amount', 'fee', 'direction', 'raw_type', 'raw_category', 'desc', 'status', 'email', 'method']
@@ -326,6 +326,7 @@ export default function ImportPage() {
   const r = useQuery(load)
   const [slots, setSlots] = useState({})
   const [show, setShow] = useState('attention')
+  const [tab, setTab] = useState('files')
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(false)
   const d = r.data
@@ -416,6 +417,8 @@ export default function ImportPage() {
         {role !== 'admin' && <div className="alert">{t('onlyAdmin')}</div>}
         {result && <div className="ok">{result.map((x) => <div key={x.name}>{x.name}: {x.linked !== undefined ? int(x.linked) : x.error ? x.error
           : `${int(x.inserted)} ${t('outcome_new')} · ${int(x.duplicates)} ${t('outcome_duplicate')} · ${int(x.needs_rule)} ${t('outcome_needs_rule')} · ${int(x.new_customers)} ${t('newCustomersShort')}`}</div>)}</div>}
+        {role === 'admin' && <Tabs value={tab} onChange={setTab} label={t('importFiles')} items={[['files', t('tabFiles')], ['cards', t('tabCards')], ['subs', t('subscriptions')]]} />}
+        {tab === 'files' && <>
         {role === 'admin' && <div className="grid-kpi" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(230px,1fr))', gap: 12 }}>
           {d.profiles.map((p) => <Slot key={p.profile_id} profile={p} provider={d.providers.find((x) => x.provider_id === p.provider_id)}
             last={d.last[p.profile_id]} state={slots[p.profile_id]} setState={setSlot(p.profile_id)} t={t} lang={lang} />)}
@@ -463,9 +466,6 @@ export default function ImportPage() {
           </Card>
         )}
 
-        {role === 'admin' && <CardLists t={t} />}
-        {role === 'admin' && <Subscriptions t={t} lang={lang} />}
-
         <Card title={t('recentImports')}>
           <Table cols={[
             { k: 'f', h: t('file'), f: (x) => x.file_name },
@@ -475,6 +475,9 @@ export default function ImportPage() {
             { k: 's', h: t('outcome_duplicate'), r: 1, num: 1, f: (x) => int(x.rows_skipped_duplicate) }
           ]} rows={d.batches.map((b) => ({ ...b, key: b.batch_id }))} />
         </Card>
+        </>}
+        {role === 'admin' && tab === 'cards' && <CardLists t={t} />}
+        {role === 'admin' && tab === 'subs' && <Subscriptions t={t} lang={lang} />}
       </>}</Loading>
     </Page>
   )

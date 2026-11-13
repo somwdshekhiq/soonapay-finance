@@ -61,12 +61,28 @@ export default function Dashboard() {
   const [editing, setEditing] = useState(false)
   const [allQuiet, setAllQuiet] = useState(false)
   const d = r.data
+  // profit per day so far, against the last closed period's profit per day
+  const pace = (() => {
+    if (!d?.preview || !d.lastPer || !d.draft) return null
+    const days = Number(d.prog?.days_with_data) || 0
+    const lastDays = (new Date(d.lastPer.period_end) - new Date(d.lastPer.period_start)) / 864e5
+    if (days < 1 || !(lastDays > 0)) return null
+    const now = n(d.preview.net) / days, prev = n(d.lastPer.net_profit_usd) / lastDays
+    return prev > 0 ? { now, prev, chg: (100 * (now - prev)) / prev } : null
+  })()
   return (
     <Page title={t('dashboard')} sub={d?.draft ? `${t('currentPeriod')} · ${day(d.draft.period_start, lang)} – ${day(lastDay(d.draft.period_end), lang)}` : ''}>
       <Loading q={r}>{d && <>
+        {(d.unpriced > 0 || d.waiting > 0) && (
+          <div className="attn-bar" role="region" aria-label={t('needsAttention')}>
+            {d.unpriced > 0 && <a className="attn" href="#/rules"><b className="num" style={{ fontSize: 20, color: 'var(--warn)' }}>{int(d.unpriced)}</b><span>{t('unpriced')}</span></a>}
+            {d.waiting > 0 && <a className="attn" href="#/promos"><b className="num" style={{ fontSize: 20, color: 'var(--warn)' }}>{int(d.waiting)}</b><span>{t('waitingCards')}</span></a>}
+          </div>
+        )}
         <div className="grid-kpi">
           <Kpi label={t('netProfit')} value={d.preview ? usd(d.preview.net) : '—'}
-               note={d.preview ? `${t('draft')} · ${t('financeRepayment')} ${usd(d.preview.repayment)} · ${usd(d.preview.founder_share)} ${t('each')}` : t('noDraft')} />
+               note={d.preview ? <>{`${t('draft')} · ${t('financeRepayment')} ${usd(d.preview.repayment)} · ${usd(d.preview.founder_share)} ${t('each')}`}
+                 {pace && <div><span className="num">{usd(pace.now)}</span> {t('aDay')} · <b style={{ color: pace.now >= pace.prev ? 'var(--good)' : 'var(--warn)' }}>{pace.now >= pace.prev ? '▲' : '▼'} {Math.abs(pace.chg).toFixed(0)}%</b> {t('vsLastPeriod')} (<span className="num">{usd(pace.prev)}</span>)</div>}</> : t('noDraft')} />
           <Kpi label={t('outstandingFinance')} value={usd(d.outstanding)} note={d.draft ? `${t('repaymentRate')} ${Math.round(n(d.draft.repayment_rate) * 100)}%` : ''} />
           <Kpi label={t('companyAccount')} value={usd(d.company)} />
           <Kpi label={t('nextDistribution')} value={d.draft ? day(lastDay(d.draft.period_end), lang) : '—'}
@@ -113,25 +129,17 @@ export default function Dashboard() {
               { k: 'pm', h: t('profitPerMonth'), r: 1, num: 1, f: (x) => usd(x.profit_per_month) },
               { k: 'lp', h: t('lifetimeProfit'), r: 1, num: 1, f: (x) => usd(x.lifetime_profit) },
               { k: 'mi', h: t('moneyIn'), r: 1, num: 1, f: (x) => usd(x.money_in, 0) }
-            ]} rows={(allQuiet ? d.quiet : d.quiet.slice(0, 10)).map((x) => ({ ...x, key: x.customer_id }))} />
-            {d.quiet.length > 10 && <button className="btn ghost" onClick={() => setAllQuiet(!allQuiet)}>{allQuiet ? t('showLess') : `${t('showAll')} (${int(d.quiet.length)})`}</button>}
+            ]} rows={(allQuiet ? d.quiet : d.quiet.slice(0, 5)).map((x) => ({ ...x, key: x.customer_id }))} />
+            {d.quiet.length > 5 && <button className="btn ghost" onClick={() => setAllQuiet(!allQuiet)}>{allQuiet ? t('showLess') : `${t('showAll')} (${int(d.quiet.length)})`}</button>}
           </> : <div className="muted">{t('nothingHere')}</div>}
         </Card>
 
-        <div className="split">
-          <Card title={t('profitDistributedByMonth')} className="wide">
+        <Card title={t('profitDistributedByMonth')}>
             <Bars aria={t('profitDistributedByMonth')} items={d.monthly.map((m) => ({
               label: monthLabel(m.month, lang), top: '$' + (n(m.distributed_usd) / 1000).toFixed(1) + 'k',
               values: [n(m.distributed_usd)], colors: ['#9C86F0'], title: usd(m.distributed_usd)
             }))} />
-          </Card>
-          <Card title={t('needsAttention')}>
-            <a className="attn" href="#/rules" style={{ background: d.unpriced ? 'var(--warn-s)' : 'var(--ground)' }}>
-              <span className="num" style={{ fontSize: 20, color: d.unpriced ? 'var(--warn)' : 'var(--muted)' }}>{int(d.unpriced)}</span><span>{t('unpriced')}</span></a>
-            <a className="attn" href="#/promos" style={{ background: 'var(--ground)' }}>
-              <span className="num" style={{ fontSize: 20, color: 'var(--muted)' }}>{int(d.waiting)}</span><span>{t('waitingCards')}</span></a>
-          </Card>
-        </div>
+        </Card>
       </>}</Loading>
     </Page>
   )

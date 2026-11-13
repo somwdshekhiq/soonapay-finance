@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { supabase, useApp, useQuery, q, usd, day, n } from '../lib.js'
-import { Page, Card, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
+import { Page, Card, Kpi, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
 async function load() {
   const [cats, recent, recurring, company, finance, fx, isml] = await Promise.all([
     q(supabase.from('expense_categories').select('*').order('name')),
-    q(supabase.from('expenses').select('expense_id, expense_date, description, amount_usd, funding_source, expense_categories(name)').order('expense_date', { ascending: false }).limit(30)),
+    q(supabase.from('expenses').select('expense_id, expense_date, description, amount_usd, funding_source, category_id, expense_categories(name)').order('expense_date', { ascending: false }).limit(1000)),
     q(supabase.from('recurring_expenses').select('*').order('active', { ascending: false }).order('name')),
     q(supabase.from('v_company_account').select('amount_usd')),
     q(supabase.from('v_finance_balance').select('outstanding_usd')),
@@ -18,7 +18,7 @@ async function load() {
     company: company.reduce((s, r) => s + n(r.amount_usd), 0), finance: finance.reduce((s, r) => s + n(r.outstanding_usd), 0) }
 }
 
-function ExpenseForm({ d, onSaved, t }) {
+function ExpenseForm({ d, onSaved, onCancel, t }) {
   const [f, setF] = useState({ date: new Date().toISOString().slice(0, 10), cat: d.cats[0]?.category_id, desc: '', amount: '', cur: 'USD', fx: '', source: null, receipt: '' })
   const [msg, setMsg] = useState('')
   const fx = f.fx !== '' ? Number(f.fx) : d.rate(f.cur)
@@ -54,7 +54,7 @@ function ExpenseForm({ d, onSaved, t }) {
         </div>
       </fieldset>
       {msg && <div className="alert">{msg}</div>}
-      <div><button className="btn primary" onClick={save}>{t('save')}</button></div>
+      <div className="row gap8"><button className="btn primary" onClick={save}>{t('save')}</button><button className="btn" onClick={onCancel}>{t('cancel')}</button></div>
     </Card>
   )
 }
@@ -65,6 +65,14 @@ export default function Expenses() {
   const d = r.data
   const [msg, setMsg] = useState('')
   const [recForm, setRecForm] = useState(null)
+  const [adding, setAdding] = useState(false)
+  const [flt, setFlt] = useState({ cat: '', month: '', src: '' })
+  const [shownN, setShownN] = useState(30)
+  const months = d ? [...new Set(d.recent.map((x) => String(x.expense_date).slice(0, 7)))] : []
+  const list = d ? d.recent.filter((x) => (!flt.cat || String(x.category_id) === flt.cat) && (!flt.month || String(x.expense_date).slice(0, 7) === flt.month) && (!flt.src || x.funding_source === flt.src)) : []
+  const listTotal = list.reduce((s, x) => s + n(x.amount_usd), 0)
+  const byCat = Object.entries(list.reduce((m, x) => { const k = x.expense_categories?.name || '—'; m[k] = (m[k] || 0) + n(x.amount_usd); return m }, {})).sort((a, b) => b[1] - a[1])
+  const setF = (k) => (e) => { setFlt({ ...flt, [k]: e.target.value }); setShownN(30) }
   const confirmSalary = async (rec, source) => {
     const fx = d.rate(rec.currency)
     const { error } = await supabase.from('expenses').insert({
@@ -75,10 +83,10 @@ export default function Expenses() {
     setMsg(error ? error.message : t('saved')); r.reload()
   }
   return (
-    <Page title={t('expenses')}>
+    <Page title={t('expenses')} actions={<AdminOnly>{!adding && <button className="btn" onClick={() => setAdding(true)}>+ {t('newExpense')}</button>}</AdminOnly>}>
       <Loading q={r}>{d && <>
         {msg && <div className="ok">{msg}</div>}
-        <AdminOnly><ExpenseForm d={d} t={t} onSaved={() => { setMsg(t('saved')); r.reload() }} /></AdminOnly>
+        {adding && <AdminOnly><ExpenseForm d={d} t={t} onCancel={() => setAdding(false)} onSaved={() => { setMsg(t('saved')); setAdding(false); r.reload() }} /></AdminOnly>}
         <Card title={t('recurringItems')} right={<AdminOnly><button className="btn" onClick={() => setRecForm({})}>{t('addRecurring')}</button></AdminOnly>}>
           <div className="xs muted">{t('recurringNote')}</div>
           {recForm && <RecurringForm d={d} t={t} init={recForm.init} onDone={() => { setRecForm(null); r.reload() }} />}
@@ -91,14 +99,33 @@ export default function Expenses() {
             last={d.paidRec.find((p) => p.recurring_id === rec.recurring_id)} usdAmt={n(rec.amount_orig) * (d.rate(rec.currency) || 0)}
             onConfirm={confirmSalary} onEdit={() => setRecForm({ init: rec })} />)}
         </Card>
-        <Card title={t('recentExpenses')}>
+        <Card title={t('allExpenses')}>
+          <div className="form-grid">
+            <label className="field"><span>{t('category')}</span><select value={flt.cat} onChange={setF('cat')}><option value="">{t('allCategories')}</option>{d.cats.map((c) => <option key={c.category_id} value={c.category_id}>{c.name}</option>)}</select></label>
+            <label className="field"><span style={{ textTransform: 'capitalize' }}>{t('month')}</span><select value={flt.month} onChange={setF('month')}><option value="">{t('allMonths')}</option>{months.map((m) => <option key={m} value={m}>{new Date(m + '-01').toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { month: 'short', year: 'numeric' })}</option>)}</select></label>
+            <label className="field"><span>{t('paidFrom')}</span><select value={flt.src} onChange={setF('src')}><option value="">{t('anySource')}</option><option value="company_account">{t('companyAccount')}</option><option value="partner_finance">{t('addedToFinance')}</option></select></label>
+          </div>
+          <div className="grid-kpi">
+            <Kpi tone="soft" label={t('total')} value={usd(listTotal)} note={`${list.length} ${t('items')}`} />
+            <div className="kpi soft" style={{ gridColumn: 'span 2' }}>
+              <div className="small muted">{t('byCategory')}</div>
+              {byCat.slice(0, 6).map(([k, v]) => (
+                <div key={k} className="row gap8 xs"><span style={{ flex: '0 0 42%' }}>{k}</span>
+                  <div className="meter" style={{ flex: 1, height: 8 }}><div style={{ width: (listTotal ? (100 * v) / listTotal : 0) + '%', background: 'var(--accent)' }} /></div>
+                  <span className="num" style={{ flex: '0 0 70px', textAlign: 'end' }}>{usd(v, 0)}</span></div>
+              ))}
+            </div>
+          </div>
           <Table cols={[
             { k: 'd', h: t('date'), num: 1, f: (x) => day(x.expense_date, lang) },
             { k: 'desc', h: t('description'), f: (x) => x.description },
             { k: 'c', h: t('category'), f: (x) => <span className="muted">{x.expense_categories?.name}</span> },
             { k: 's', h: t('paidFrom'), f: (x) => <Pill tone={x.funding_source === 'partner_finance' ? 'good' : 'grey'}>{x.funding_source === 'partner_finance' ? t('addedToFinance') : t('companyAccount')}</Pill> },
             { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => usd(x.amount_usd) }
-          ]} rows={d.recent.map((x) => ({ ...x, key: x.expense_id }))} />
+          ]} rows={list.slice(0, shownN).map((x) => ({ ...x, key: x.expense_id }))} empty={t('nothingHere')} />
+          {list.length > shownN && <div className="row gap8"><span className="xs muted">{shownN} / {list.length}</span>
+            <button className="btn ghost" onClick={() => setShownN(shownN + 30)}>{t('showMore')}</button>
+            <button className="btn ghost" onClick={() => setShownN(list.length)}>{t('showAll')}</button></div>}
         </Card>
       </>}</Loading>
     </Page>

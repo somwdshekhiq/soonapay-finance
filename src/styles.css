@@ -86,3 +86,21 @@ h2{margin:0;font-size:16px;font-weight:600}
 .modal .card{margin:0}
 .badge{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:#E5484D;color:#fff;font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace}
 .nav-links a .row{gap:8px}
+
+.nav-group{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.nav-group-h{padding:6px 14px 4px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8E8A9E}
+.nav-links a{padding:9px 14px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{font:inherit;font-size:14px;padding:10px 16px;min-height:44px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tab.on{color:var(--accent-d);border-bottom-color:var(--accent);font-weight:600}
+.attn-bar{display:flex;flex-wrap:wrap;gap:12px}.attn-bar .attn{flex:1 1 260px;background:var(--warn-s)}
+@media (max-width:700px){
+  .nav-links a{padding:13px 14px}
+  .tbl.cards thead{display:none}
+  .tbl.cards,.tbl.cards tbody{display:block}
+  .tbl.cards tr{display:block;padding:10px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px}
+  .tbl.cards td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;border:0;text-align:end;min-width:0;overflow-wrap:anywhere}
+  .tbl.cards td::before{content:attr(data-label);flex:none;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:start}
+  .tbl.cards td:empty{display:none}
+}
+@media (max-width:780px){.nav .logo{display:none}.nav{padding-top:14px}.nav .muted-inv{padding-bottom:10px}}

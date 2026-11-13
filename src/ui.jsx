@@ -1,3 +1,4 @@
+import { Component } from 'react'
 import { useApp } from './lib.js'
 
 export const Page = ({ title, sub, actions, children }) => (
@@ -30,19 +31,39 @@ export const Pill = ({ tone = 'grey', children }) => <span className={'pill ' + 
 export function Table({ cols, rows, empty = '—', rowStyle }) {
   return (
     <div className="tbl-wrap">
-      <table className="tbl">
+      <table className={'tbl' + (cols.length > 3 ? ' cards' : '')}>
         <thead><tr>{cols.map((c) => <th key={c.k} className={c.r ? 'r' : ''}>{c.h}</th>)}</tr></thead>
         <tbody>
           {rows.length === 0 && <tr><td colSpan={cols.length} className="muted">{empty}</td></tr>}
           {rows.map((row, i) => (
             <tr key={row.key ?? i} style={rowStyle ? rowStyle(row) : undefined}>
-              {cols.map((c) => <td key={c.k} className={(c.r ? 'r ' : '') + (c.num ? 'num' : '')}>{c.f ? c.f(row) : row[c.k]}</td>)}
+              {cols.map((c) => <td key={c.k} data-label={typeof c.h === 'string' ? c.h : ''} className={(c.r ? 'r ' : '') + (c.num ? 'num' : '')}>{c.f ? c.f(row) : row[c.k]}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   )
+}
+
+// Tabs inside a page: items = [[key, label], ...]
+export const Tabs = ({ value, onChange, items, label }) => (
+  <div className="tabs" role="tablist" aria-label={label}>
+    {items.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={value === k} className={'tab ' + (value === k ? 'on' : '')} onClick={() => onChange(k)}>{l}</button>)}
+  </div>
+)
+
+// Keeps the menu usable when one page crashes
+export class PageGuard extends Component {
+  constructor(p) { super(p); this.state = { err: null } }
+  static getDerivedStateFromError(err) { return { err } }
+  render() {
+    if (!this.state.err) return this.props.children
+    return (
+      <main className="page"><div className="alert">{this.props.title} <span className="xs">({String(this.state.err.message || this.state.err).slice(0, 140)})</span></div>
+        <div><button className="btn primary" onClick={() => this.setState({ err: null })}>{this.props.retry}</button></div></main>
+    )
+  }
 }
 
 export function Loading({ q, children }) {

@@ -116,6 +116,7 @@ export const T = {
     validFrom: 'Valid from', validTo: 'Valid to', open: 'Open', loading: 'Loading…', error: 'Something went wrong',
     importSoon: 'File import with a slot per provider arrives in the next release. Until then, history is loaded up to 1 Nov 2026.',
     menu: 'Menu', closeMenu: 'Close menu',
+    navOverview: 'Overview', navTransactions: 'Transactions', navCustomers: 'Customers', navPartners: 'Partners & money', navSettings: 'Settings', vsLastPeriod: 'vs last period', aDay: 'a day', tabProfit: 'Profit', tabProducts: 'Products', tabGateways: 'Gateways', tabCustomers: 'Customers', tabFiles: 'Transaction files', tabCards: 'Card lists', allCategories: 'All categories', allMonths: 'All months', anySource: 'Any source', pageError: 'This page hit a problem.', tryAgain: 'Try again', byCategory: 'By category', allExpenses: 'Expenses',
     language: 'العربية', onlyAdmin: 'Only the admin can change data.', saved: 'Saved', since: 'since',
     notMember: 'Your login works, but it is not linked to SoonaPay Finance yet. Ask the admin to add you.',
     companyNote: 'In: the Company share of each distribution. Out: expenses paid from the Company account.',
@@ -188,6 +189,7 @@ export const T = {
     validFrom: 'ساري من', validTo: 'ساري إلى', open: 'مفتوح', loading: 'جارٍ التحميل…', error: 'حدث خطأ',
     importSoon: 'استيراد الملفات بخانة لكل مزود سيكون في الإصدار القادم. البيانات التاريخية محمّلة حتى 1 نوفمبر 2026.',
     menu: 'القائمة', closeMenu: 'إغلاق القائمة',
+    navOverview: 'نظرة عامة', navTransactions: 'الحركات', navCustomers: 'العملاء', navPartners: 'الشركاء والمال', navSettings: 'الإعدادات', vsLastPeriod: 'مقارنة بالفترة السابقة', aDay: 'في اليوم', tabProfit: 'الربح', tabProducts: 'المنتجات', tabGateways: 'البوابات', tabCustomers: 'العملاء', tabFiles: 'ملفات الحركات', tabCards: 'قوائم البطاقات', allCategories: 'كل الفئات', allMonths: 'كل الشهور', anySource: 'أي مصدر', pageError: 'حصلت مشكلة في هذه الصفحة.', tryAgain: 'حاول مرة أخرى', byCategory: 'حسب الفئة', allExpenses: 'المصروفات',
     language: 'English', onlyAdmin: 'التعديل متاح للمدير فقط.', saved: 'تم الحفظ', since: 'منذ',
     notMember: 'تسجيل الدخول يعمل لكن الحساب غير مرتبط بسونا باي المالية بعد. اطلب من المدير إضافتك.',
     companyNote: 'الداخل: حصة الشركة من كل توزيع. الخارج: المصروفات المدفوعة من حساب الشركة.',
@@ -238,7 +240,7 @@ export function lastDay(end) {
 
 // The latest approved/paid distribution: what it gave the Company account, and what was left after the finance repayment
 export async function lastClosedPeriod() {
-  const per = await q(supabase.from('distribution_periods').select('period_id, period_start, period_end, distributable_usd, company_rate')
+  const per = await q(supabase.from('distribution_periods').select('period_id, period_start, period_end, distributable_usd, company_rate, net_profit_usd')
     .neq('status', 'draft').order('period_end', { ascending: false }).limit(1))
   if (!per[0]) return null
   const lines = await q(supabase.from('distribution_lines').select('amount_usd, partners!inner(is_company)')

@@ -24,6 +24,7 @@ export default function Distributions() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [view, setView] = useState(null)
+  const [histN, setHistN] = useState(6)
   const r = useQuery(() => load(rate, crate), [rate, crate])
   const d = r.data
   const p = d?.preview
@@ -110,7 +111,13 @@ export default function Distributions() {
             { k: 'each', h: t('eachFounder'), r: 1, num: 1, f: (x) => { const l = d.founder.find((f) => f.period_id === x.period_id); return usd(l ? l.amount_usd : n(x.distributable_usd) / 5) } },
             { k: 'st', h: t('status'), f: (x) => <Pill tone={x.status === 'paid' ? 'good' : 'warn'}>{t(x.status)}</Pill> },
             { k: 'v', h: '', r: 1, f: (x) => <button className="btn" onClick={() => setView(x)}>{t('viewPayments')}</button> }
-          ]} rows={d.history.map((h) => ({ ...h, key: h.period_id }))} />
+          ]} rows={d.history.slice(0, histN).map((h) => ({ ...h, key: h.period_id }))} />
+          {d.history.length > 6 && <div className="row gap8 wrap">
+            <span className="xs muted">{Math.min(histN, d.history.length)} / {d.history.length}</span>
+            {histN < d.history.length && <button className="btn ghost" onClick={() => setHistN(histN + 12)}>{t('showMore')}</button>}
+            {histN < d.history.length && <button className="btn ghost" onClick={() => setHistN(d.history.length)}>{t('showAll')}</button>}
+            {histN > 6 && <button className="btn ghost" onClick={() => setHistN(6)}>{t('showLess')}</button>}
+          </div>}
         </Card>
       </>}</Loading>
     </Page>
