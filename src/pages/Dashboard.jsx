@@ -122,7 +122,7 @@ export default function Dashboard() {
           {d.quiet.length ? <>
             <div className="small">{t('goneQuietLost')} <b className="num">{usd(d.quiet.reduce((s, x) => s + n(x.profit_per_month), 0), 0)}</b> {t('perMonthShort')}</div>
             <Table cols={[
-              { k: 'c', h: t('customer'), f: (x) => <a href={'#/transactions?q=' + encodeURIComponent(x.email)}><div className="xs">{x.username || x.email}</div>{x.username && <div className="xs muted num">{x.email}</div>}</a> },
+              { k: 'c', h: t('customer'), f: (x) => <a href={'#/customers?id=' + x.customer_id}><div className="xs">{x.username || x.email}</div>{x.username && <div className="xs muted num">{x.email}</div>}</a> },
               { k: 'l', h: t('lastActive'), num: 1, f: (x) => day(x.last_active, lang) },
               { k: 'q', h: t('daysQuiet'), r: 1, num: 1, f: (x) => <span style={{ color: x.days_quiet > 60 ? 'var(--warn)' : undefined }}>{int(x.days_quiet)}</span> },
               { k: 'm', h: t('activeMonths'), r: 1, num: 1, f: (x) => int(x.active_months) },

@@ -15,9 +15,10 @@ import Notifications from './pages/Notifications.jsx'
 import Providers from './pages/Providers.jsx'
 import Transactions from './pages/Transactions.jsx'
 import Backcharges from './pages/Backcharges.jsx'
+import Customers from './pages/Customers.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['backcharges', Backcharges], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['backcharges', Backcharges], ['customers', Customers], ['importFiles', ImportPage], ['expenses', Expenses],
   ['distributions', Distributions], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
@@ -25,7 +26,7 @@ const ADMIN_ONLY = ['notifications', 'providers']
 const GROUPS = [
   ['navOverview', ['dashboard', 'statistics']],
   ['navTransactions', ['importFiles', 'transactions', 'backcharges']],
-  ['navCustomers', ['promos']],
+  ['navCustomers', ['customers', 'promos']],
   ['navPartners', ['distributions', 'financePartners', 'expenses']],
   ['navSettings', ['rules', 'providers']]
 ]
