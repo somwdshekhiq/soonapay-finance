@@ -16,18 +16,20 @@ import Providers from './pages/Providers.jsx'
 import Transactions from './pages/Transactions.jsx'
 import Backcharges from './pages/Backcharges.jsx'
 import Customers from './pages/Customers.jsx'
+import Pnl from './pages/Pnl.jsx'
+import Partner from './pages/Partner.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['backcharges', Backcharges], ['customers', Customers], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['backcharges', Backcharges], ['customers', Customers], ['pnl', Pnl], ['partnerStatement', Partner], ['importFiles', ImportPage], ['expenses', Expenses],
   ['distributions', Distributions], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
 // menu sections (notifications sits above them, on its own)
 const GROUPS = [
-  ['navOverview', ['dashboard', 'statistics']],
+  ['navOverview', ['dashboard', 'statistics', 'pnl']],
   ['navTransactions', ['importFiles', 'transactions', 'backcharges']],
   ['navCustomers', ['customers', 'promos']],
-  ['navPartners', ['distributions', 'financePartners', 'expenses']],
+  ['navPartners', ['distributions', 'partnerStatement', 'financePartners', 'expenses']],
   ['navSettings', ['rules', 'providers']]
 ]
 
@@ -123,7 +125,7 @@ function App() {
   const [active, Current] = routes.find(([k]) => k === route) || routes[0]
   const has = (k) => routes.some(([x]) => x === k)
   return (
-    <AppCtx.Provider value={{ role: member.role, lang, t }}>
+    <AppCtx.Provider value={{ role: member.role, lang, t, partnerId: member.partner_id }}>
       <div className="shell">
         <header className="topbar">
           <button type="button" className="burger" aria-label={menuOpen ? t('closeMenu') : t('menu')} aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen(!menuOpen)}>
@@ -141,6 +143,12 @@ function App() {
             <button className="btn nav-btn" onClick={toggleLang}>{t('language')}</button>
             <button className="btn nav-btn" onClick={() => supabase.auth.signOut()}>{t('signOut')}</button>
           </div>
+          {has('customers') && (
+            <form className="nav-search" role="search" onSubmit={(e) => { e.preventDefault(); const v = e.target.elements.q.value.trim(); if (!v) return
+              window.location.hash = '#/customers?q=' + encodeURIComponent(v); e.target.reset(); setMenuOpen(false) }}>
+              <input name="q" type="search" placeholder={t('searchAllPh')} aria-label={t('searchAllPh')} autoComplete="off" />
+            </form>
+          )}
           <div className="nav-links">
             {has('notifications') && <a href="#/notifications" className={active === 'notifications' ? 'on' : ''} onClick={() => setMenuOpen(false)}>
               <span className="row between">{t('notifications')}{unread > 0 && <span className="badge" aria-label={`${unread} ${t('unread')}`}>{unread}</span>}</span></a>}

@@ -30,7 +30,11 @@ a{color:var(--accent);text-underline-offset:3px}a:hover{color:var(--accent-d)}
 .nav-links a .row{gap:8px}
 .nav-group{display:flex;flex-direction:column;gap:2px;margin-top:12px}
 .nav-group-h{padding:6px 14px 4px;font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#77748A}
-.nav-top{display:flex;gap:6px;padding:0 0 14px}
+.nav-top{display:flex;gap:6px;padding:0 0 12px}
+.nav-search{padding:0 0 12px}
+.nav-search input{width:100%;font:inherit;font-size:14px;color:#fff;background:rgba(255,255,255,.07);border:1px solid #34323D;border-radius:var(--r-md);padding:9px 12px;min-height:40px}
+.nav-search input::placeholder{color:#8F8C9E}
+.nav-search input:focus{outline:0;border-color:#9A7BFF;box-shadow:0 0 0 3px rgba(154,123,255,.25)}
 .nav-top .btn{flex:1 1 0;min-height:36px;padding:6px 10px;font-size:13px;text-align:center}
 .nav-btn,.nav-btn:hover{background:transparent;color:#B9B6C8;border:1px solid #34323D;text-align:start;box-shadow:none}
 .nav-btn:hover{background:rgba(255,255,255,.06);color:#fff}
@@ -132,7 +136,7 @@ h2{margin:0;font-size:16px;font-weight:600;letter-spacing:-.005em}
 
 @media (max-width:700px){
   h1{font-size:24px}.kpi-v{font-size:21px;overflow-wrap:anywhere}.card{padding:16px}
-  .grid-kpi{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kpi{padding:14px}
+  .grid-kpi{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kpi{padding:14px}.kpi.wide{grid-column:1/-1}
   .btn{min-height:44px}.field input,.field select,.inp{min-height:44px}
   .tbl.cards thead{display:none}
   .tbl.cards,.tbl.cards tbody{display:block}

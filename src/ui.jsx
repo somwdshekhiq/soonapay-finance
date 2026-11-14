@@ -18,8 +18,8 @@ export const Card = ({ title, right, children, className = '', style }) => (
   </section>
 )
 
-export const Kpi = ({ label, value, note, tone }) => (
-  <div className={'kpi ' + (tone || '')}>
+export const Kpi = ({ label, value, note, tone, wide }) => (
+  <div className={'kpi ' + (tone || '') + (wide ? ' wide' : '')}>
     <div className="small muted">{label}</div>
     <div className="num kpi-v">{value}</div>
     {note && <div className="xs muted">{note}</div>}

@@ -6,7 +6,8 @@ const PAGE = 50
 const TONE = { active: 'good', new: 'violet', quiet: 'warn', lost: 'grey', none: 'grey' }
 const STATUSES = ['all', 'active', 'new', 'quiet', 'lost']
 const SORTS = ['profit', 'money_in', 'last', 'first', 'txns']
-const hashId = () => new URLSearchParams(window.location.hash.split('?')[1] || '').get('id')
+const hashGet = (k) => new URLSearchParams(window.location.hash.split('?')[1] || '').get(k)
+const hashId = () => hashGet('id')
 const initial = (x) => String(x.username || x.email || '?').trim().charAt(0)
 
 function Who({ x, lg }) {
@@ -95,10 +96,10 @@ function Detail({ id }) {
   )
 }
 
-function List() {
+function List({ q0 }) {
   const { t, lang } = useApp()
-  const [f, setF] = useState({ q: '', status: 'all', sort: 'profit' })
-  const [text, setText] = useState('')
+  const [f, setF] = useState({ q: q0, status: 'all', sort: 'profit' })
+  const [text, setText] = useState(q0)
   const [page, setPage] = useState(0)
   const r = useQuery(() => q(supabase.rpc('customer_list', { p_q: f.q || null, p_status: f.status, p_sort: f.sort, p_limit: PAGE, p_offset: page * PAGE })), [f.q, f.status, f.sort, page])
   const d = r.data
@@ -140,6 +141,7 @@ function List() {
             { k: 'p', h: t('profit'), r: 1, num: 1, f: (x) => <b style={{ color: n(x.profit) < 0 ? 'var(--warn)' : undefined }}>{usd(x.profit)}</b> },
             { k: 'o', h: '', r: 1, f: (x) => <button className="btn ghost" onClick={() => open(x)} aria-label={`${t('openItem')} ${x.email}`}>{t('openItem')} →</button> }
           ]} rows={d.rows.map((x) => ({ ...x, key: x.customer_id }))} empty={t('nothingHere')} />
+          {f.q && !n(d.total) && <div><a className="btn" style={{ display: 'inline-block', textDecoration: 'none' }} href={'#/transactions?q=' + encodeURIComponent(f.q)}>{t('searchTxnsFor')} “{f.q}” →</a></div>}
           {pages > 1 && <div className="row between">
             <button className="btn" disabled={page === 0} onClick={() => setPage(page - 1)}>← {t('previous')}</button>
             <span className="small muted">{page + 1} / {pages}</span>
@@ -152,10 +154,11 @@ function List() {
 
 export default function Customers() {
   const [id, setId] = useState(hashId)
+  const [q0, setQ0] = useState(() => hashGet('q') || '')
   useEffect(() => {
-    const on = () => { setId(hashId()); window.scrollTo(0, 0) }
+    const on = () => { setId(hashId()); setQ0(hashGet('q') || ''); window.scrollTo(0, 0) }
     window.addEventListener('hashchange', on)
     return () => window.removeEventListener('hashchange', on)
   }, [])
-  return id ? <Detail key={id} id={id} /> : <List />
+  return id ? <Detail key={id} id={id} /> : <List key={q0} q0={q0} />
 }

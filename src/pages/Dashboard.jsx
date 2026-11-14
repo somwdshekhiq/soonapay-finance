@@ -105,7 +105,7 @@ export default function Dashboard() {
               <div className="grid-kpi">
                 <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? `${t('asOf')} ${day(w.snapshot_date, lang)}` : ''} />
                 <Kpi tone="soft" label={t('walletsTotal')} value={usd(total)} note={rows.filter((x) => !x.b).length ? `${rows.filter((x) => !x.b).length} × ${t('notEnteredYet')}` : ''} />
-                <Kpi tone={gap > 0 ? 'warn' : 'good'} label={gap > 0 ? t('gapShort') : t('surplus')} value={gap === null ? '—' : usd(Math.abs(gap))}
+                <Kpi wide tone={gap > 0 ? 'warn' : 'good'} label={gap > 0 ? t('gapShort') : t('surplus')} value={gap === null ? '—' : usd(Math.abs(gap))}
                      note={gap > 0 ? (!d.lastPer ? t('gapNoReserve') : isFinite(gm.months) ? fill('gapLastPeriod') : fill('gapNeverCloses')) : ''} />
               </div>
               <Table cols={[
