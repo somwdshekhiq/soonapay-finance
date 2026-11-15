@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase, useApp, useQuery, q, usd, int, n, day, monthLabel } from '../lib.js'
-import { Page, Card, Kpi, Loading, Bars, Table, Pill } from '../ui.jsx'
+import { Page, Card, Kpi, Loading, Bars, Table, Pill, Tabs } from '../ui.jsx'
 
 const C1 = '#5B2EE6', C2 = '#1E9BC8', SOFT = '#9C86F0'
 const RANGES = ['30d', '90d', 'ytd', 'all']
@@ -24,10 +24,64 @@ function trendOf(x) {
   if (a <= b * 0.75) return 'down'
   return 'steady'
 }
+const CardName = ({ x }) => {
+  const { t } = useApp()
+  return x.product
+    ? <span><b>{x.product}</b> <bdi className="muted">{x.denomination}</bdi><div className="xs muted num">{price(x.price)}</div></span>
+    : <span><b className="num">{price(x.price)}</b><div className="xs muted">{t('gcNotInList')}</div></span>
+}
 const TONE = { up: 'good', new: 'violet', steady: 'grey', down: 'warn', stopped: 'warn' }
+
+// Card list (gift_card_products) — admins can add / edit; sales are matched to it by exact price
+const BLANK = { product_id: '', product: '', denomination: '', price: '', active: true }
+function CardList({ prices }) {
+  const { t, role } = useApp()
+  const list = useQuery(() => q(supabase.from('gift_card_products').select('*').order('product').order('price')))
+  const [form, setForm] = useState(null), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
+  const sold = Object.fromEntries((prices || []).map((x) => [n(x.price).toFixed(2), n(x.orders)]))
+  const set = (k) => (e) => setForm({ ...form, [k]: k === 'active' ? e.target.checked : e.target.value })
+  const save = async (e) => {
+    e.preventDefault(); setBusy(true); setMsg('')
+    try {
+      const row = { product_id: Number(form.product_id), product: form.product.trim(), denomination: form.denomination.trim() || null,
+        price: Number(form.price), active: form.active, updated_at: new Date().toISOString() }
+      if (!row.product_id || !row.product || !(row.price > 0)) throw new Error(t('gcFormRequired'))
+      const req = form.isNew ? supabase.from('gift_card_products').insert(row) : supabase.from('gift_card_products').update(row).eq('product_id', form.orig)
+      await q(req); setForm(null); list.reload()
+    } catch (er) { setMsg(/unique|duplicate/i.test(er.message) ? t('gcDupPrice') : er.message) } finally { setBusy(false) }
+  }
+  return (
+    <Card title={t('gcCardList')} right={role === 'admin' && !form && <button className="btn primary" onClick={() => setForm({ ...BLANK, isNew: true })}>+ {t('gcAddCard')}</button>}>
+      {form && (
+        <form className="form-grid" onSubmit={save}>
+          <label className="field"><span>{t('gcPlatformId')}</span><input type="number" required value={form.product_id} onChange={set('product_id')} /></label>
+          <label className="field"><span>{t('gcProduct')}</span><input required value={form.product} onChange={set('product')} placeholder="PUBG (global)" /></label>
+          <label className="field"><span>{t('gcDenomination')}</span><input dir="ltr" value={form.denomination} onChange={set('denomination')} placeholder="60 UC" /></label>
+          <label className="field"><span>{t('gcPrice')} ($)</span><input type="number" step="0.01" min="0.01" required value={form.price} onChange={set('price')} /></label>
+          <label className="field row gap8" style={{ alignItems: 'center' }}><input type="checkbox" style={{ width: 18, height: 18, flex: 'none' }} checked={form.active} onChange={set('active')} /><span>{t('gcActive')}</span></label>
+          <div className="field"><span>&nbsp;</span><div className="row gap8">
+            <button className="btn primary" disabled={busy}>{t('save')}</button>
+            <button type="button" className="btn" onClick={() => { setForm(null); setMsg('') }}>{t('cancel')}</button></div></div>
+        </form>
+      )}
+      {msg && <div className="alert">{msg}</div>}
+      <Loading q={list}>{list.data && <Table cols={[
+        { k: 'i', h: 'ID', num: 1, f: (x) => <span className="xs muted">{x.product_id}</span> },
+        { k: 'p', h: t('gcProduct'), f: (x) => <b>{x.product}</b> },
+        { k: 'd', h: t('gcDenomination'), f: (x) => x.denomination ? <bdi>{x.denomination}</bdi> : '—' },
+        { k: 'r', h: t('gcPrice'), r: 1, num: 1, f: (x) => price(x.price) },
+        { k: 's', h: t('gcOrders'), r: 1, num: 1, f: (x) => int(sold[n(x.price).toFixed(2)] || 0) },
+        { k: 'a', h: t('status'), f: (x) => <span className="row gap8">{x.active ? <Pill tone="good">{t('gcActive')}</Pill> : <Pill>{t('stopped')}</Pill>}
+          {role === 'admin' && <button type="button" className="btn" onClick={() => setForm({ ...BLANK, ...x, denomination: x.denomination || '', orig: x.product_id, isNew: false })}>{t('edit')}</button>}</span> }
+      ]} rows={list.data.map((x) => ({ ...x, key: x.product_id }))} empty={t('nothingHere')} />}</Loading>
+      <div className="xs muted">{t('gcCardListNote')}</div>
+    </Card>
+  )
+}
 
 export default function Giftcards() {
   const { t, lang } = useApp()
+  const [tab, setTab] = useState('stats')
   const [range, setRange] = useState('all')
   const [allPrices, setAllPrices] = useState(false)
   const phone = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 700px)').matches
@@ -38,6 +92,9 @@ export default function Giftcards() {
 
   return (
     <Page title={t('giftCards')} sub={t('giftCardsSub')}>
+      <Tabs value={tab} onChange={setTab} label={t('giftCards')} items={[['stats', t('statistics')], ['list', t('gcCardList')]]} />
+      {tab === 'list' && <CardList prices={d?.prices} />}
+      {tab === 'stats' && <>
       <div className="row gap8 wrap" role="group" aria-label={t('range')}>
         {RANGES.map((k) => <button key={k} type="button" className={'btn ' + (range === k ? 'on' : '')} aria-pressed={range === k} onClick={() => setRange(k)}>{t('gc_' + k)}</button>)}
       </div>
@@ -67,10 +124,22 @@ export default function Giftcards() {
             <Card title={t('gcFastest')}>
               <div className="grid-kpi">
                 {fast.map((x, i) => (
-                  <Kpi key={x.price} tone={i === 0 ? 'good' : 'soft'} label={`#${i + 1} · ${t('gcCard')} ${price(x.price)}`} value={`${int(x.last30)} ${t('gcInLast30')}`}
+                  <Kpi key={x.price} tone={i === 0 ? 'good' : 'soft'} label={`#${i + 1} · ${x.product ? `${x.product} · ${x.denomination || ''}` : t('gcNotInList')} · ${price(x.price)}`} value={`${int(x.last30)} ${t('gcInLast30')}`}
                        note={<>{x.days_between !== null ? `${t('gcEvery')} ${n(x.days_between).toFixed(1)} ${t('days')}` : ''} · {t('gcLastSold')} {day(x.last_sold, lang)}</>} />
                 ))}
               </div>
+            </Card>
+          )}
+
+          {(d.games || []).length > 0 && (
+            <Card title={t('gcByGame')}>
+              <Table cols={[
+                { k: 'g', h: t('gcGame'), f: (x) => x.product ? <b>{x.product}</b> : <span className="muted">{t('gcNotInList')}</span> },
+                { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => <span>{int(x.orders)} <span className="xs muted">{share(n(x.orders), orders)}</span></span> },
+                { k: 'v', h: t('gcSales'), r: 1, num: 1, f: (x) => usd(x.revenue) },
+                { k: 'b', h: t('gcBuyers'), r: 1, num: 1, f: (x) => int(x.buyers) },
+                { k: 'l', h: t('gcLast30Short2'), r: 1, num: 1, f: (x) => int(x.last30) }
+              ]} rows={d.games.map((x) => ({ ...x, key: x.product || '~' }))} empty={t('nothingHere')} />
             </Card>
           )}
 
@@ -83,9 +152,9 @@ export default function Giftcards() {
             </Card>
           )}
 
-          <Card title={`${t('gcByPrice')} · ${int(prices.length)}`}>
+          <Card title={`${t('gcByPrice')} · ${int(prices.length)}`} right={<span className="xs muted">{int(d.matched)} / {int(orders)} {t('gcMatched')}</span>}>
             <Table cols={[
-              { k: 'p', h: t('gcCard'), num: 1, f: (x) => <b>{price(x.price)}</b> },
+              { k: 'p', h: t('gcCard'), f: (x) => <CardName x={x} /> },
               { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => <span>{int(x.orders)} <span className="xs muted">{share(n(x.orders), orders)}</span></span> },
               { k: 'v', h: t('gcSales'), r: 1, num: 1, f: (x) => usd(x.revenue) },
               { k: 'b', h: t('gcBuyers'), r: 1, num: 1, f: (x) => int(x.buyers) },
@@ -125,11 +194,13 @@ export default function Giftcards() {
             <Table cols={[
               { k: 'd', h: t('date'), num: 1, f: (x) => <span className="xs">{day(x.txn_time, lang)}</span> },
               { k: 'c', h: t('customer'), f: (x) => <a className="xs num" href={'#/customers?id=' + x.customer_id}>{x.username || x.email || '—'}</a> },
+              { k: 'g', h: t('gcCard'), f: (x) => x.product ? <span className="xs">{x.product} · <bdi>{x.denomination}</bdi></span> : <span className="xs muted">{t('gcNotInList')}</span> },
               { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => usd(x.amt) }
             ]} rows={(d.recent || []).map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />
           </Card>
         </>
       })()}</Loading>
+      </>}
     </Page>
   )
 }
