@@ -40,6 +40,11 @@ a{color:var(--accent);text-underline-offset:3px}a:hover{color:var(--accent-d)}
 .nav-btn:hover{background:rgba(255,255,255,.06);color:#fff}
 .page{flex:999 1 560px;min-width:0;padding:32px 40px 48px;display:flex;flex-direction:column;gap:22px;max-width:1500px}
 .topbar,.nav-scrim{display:none}
+/* desktop: the side menu stays in place while the page scrolls */
+@media (min-width:781px){
+  .shell{flex-wrap:nowrap;align-items:flex-start}
+  .nav{flex:0 0 232px;position:sticky;top:0;height:100vh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3A3846 transparent}
+}
 @media (max-width:780px){
   .shell{display:block}
   .topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:30;height:56px;padding:0 12px;background:var(--nav);color:#fff}
