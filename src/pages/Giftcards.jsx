@@ -38,7 +38,7 @@ function CardList({ prices }) {
   const { t, role } = useApp()
   const list = useQuery(() => q(supabase.from('gift_card_products').select('*').order('product').order('price')))
   const [form, setForm] = useState(null), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
-  const sold = Object.fromEntries((prices || []).map((x) => [n(x.price).toFixed(2), n(x.orders)]))
+  const sold = Object.fromEntries((prices || []).filter((x) => x.product_id).map((x) => [x.product_id, n(x.cards)]))
   const set = (k) => (e) => setForm({ ...form, [k]: k === 'active' ? e.target.checked : e.target.value })
   const save = async (e) => {
     e.preventDefault(); setBusy(true); setMsg('')
@@ -70,7 +70,7 @@ function CardList({ prices }) {
         { k: 'p', h: t('gcProduct'), f: (x) => <b>{x.product}</b> },
         { k: 'd', h: t('gcDenomination'), f: (x) => x.denomination ? <bdi>{x.denomination}</bdi> : '—' },
         { k: 'r', h: t('gcPrice'), r: 1, num: 1, f: (x) => price(x.price) },
-        { k: 's', h: t('gcOrders'), r: 1, num: 1, f: (x) => int(sold[n(x.price).toFixed(2)] || 0) },
+        { k: 's', h: t('gcOrders'), r: 1, num: 1, f: (x) => int(sold[x.product_id] || 0) },
         { k: 'a', h: t('status'), f: (x) => <span className="row gap8">{x.active ? <Pill tone="good">{t('gcActive')}</Pill> : <Pill>{t('stopped')}</Pill>}
           {role === 'admin' && <button type="button" className="btn" onClick={() => setForm({ ...BLANK, ...x, denomination: x.denomination || '', orig: x.product_id, isNew: false })}>{t('edit')}</button>}</span> }
       ]} rows={list.data.map((x) => ({ ...x, key: x.product_id }))} empty={t('nothingHere')} />}</Loading>
@@ -99,7 +99,7 @@ export default function Giftcards() {
         {RANGES.map((k) => <button key={k} type="button" className={'btn ' + (range === k ? 'on' : '')} aria-pressed={range === k} onClick={() => setRange(k)}>{t('gc_' + k)}</button>)}
       </div>
       <Loading q={r}>{d && (() => {
-        const orders = n(d.orders)
+        const orders = n(d.orders), cards = n(d.cards)
         const prices = d.prices || []
         const fast = prices.filter((x) => n(x.last30) > 0).sort((a, b) => n(b.last30) - n(a.last30) || n(a.days_between) - n(b.days_between)).slice(0, 3)
         const l30 = n(d.last30), p30 = n(d.prev30)
@@ -112,7 +112,7 @@ export default function Giftcards() {
         const hh = (h) => String(h).padStart(2, '0')
         return <>
           <div className="grid-kpi">
-            <Kpi tone="soft" label={t('gcOrders')} value={int(orders)} note={d.first ? `${day(d.first, lang)} → ${day(d.last, lang)}` : ''} />
+            <Kpi tone="soft" label={t('gcOrders')} value={int(cards)} note={<>{int(orders)} {t('gcOrdersWord')} · {int(d.multi_orders)} {t('gcMulti')}{d.first && <div>{day(d.first, lang)} → {day(d.last, lang)}</div>}</>} />
             <Kpi tone="soft" label={t('gcSales')} value={usd(d.revenue)} note={`${t('gcAvgOrder')} ${usd(orders ? n(d.revenue) / orders : 0)}`} />
             <Kpi tone="soft" label={t('gcBuyers')} value={int(d.buyers)} note={`${int(d.repeat_buyers)} ${t('gcRepeat')} (${share(n(d.repeat_buyers), n(d.buyers))})`} />
             <Kpi tone="good" label={t('profit')} value={usd(d.profit)} note={`${usd(orders ? n(d.profit) / orders : 0)} ${t('gcPerCard')}`} />
@@ -135,7 +135,8 @@ export default function Giftcards() {
             <Card title={t('gcByGame')}>
               <Table cols={[
                 { k: 'g', h: t('gcGame'), f: (x) => x.product ? <b>{x.product}</b> : <span className="muted">{t('gcNotInList')}</span> },
-                { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => <span>{int(x.orders)} <span className="xs muted">{share(n(x.orders), orders)}</span></span> },
+                { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => <span>{int(x.cards)} <span className="xs muted">{share(n(x.cards), cards)}</span></span> },
+                { k: 'n', h: t('gcOrderCount'), r: 1, num: 1, f: (x) => int(x.orders) },
                 { k: 'v', h: t('gcSales'), r: 1, num: 1, f: (x) => usd(x.revenue) },
                 { k: 'b', h: t('gcBuyers'), r: 1, num: 1, f: (x) => int(x.buyers) },
                 { k: 'l', h: t('gcLast30Short2'), r: 1, num: 1, f: (x) => int(x.last30) }
@@ -146,22 +147,23 @@ export default function Giftcards() {
           {(d.monthly || []).length > 0 && (
             <Card title={t('gcByMonth')} right={<div className="legend"><span><i className="dot" style={{ background: C1 }} />{t('gcOrders')}</span><span><i className="dot" style={{ background: C2 }} />{t('gcBuyers')}</span></div>}>
               <Bars aria={t('gcByMonth')} height={200} items={(phone ? d.monthly.slice(-6) : d.monthly).map((m) => ({
-                label: monthLabel(m.mon + '-01', lang), tops: [int(m.orders), int(m.buyers)], sub: usd(m.revenue, 0),
-                values: [n(m.orders), n(m.buyers)], colors: [C1, C2], title: `${int(m.orders)} ${t('gcOrders')} · ${int(m.buyers)} ${t('gcBuyers')} · ${usd(m.revenue)}` }))} />
+                label: monthLabel(m.mon + '-01', lang), tops: [int(m.cards), int(m.buyers)], sub: usd(m.revenue, 0),
+                values: [n(m.cards), n(m.buyers)], colors: [C1, C2], title: `${int(m.cards)} ${t('gcOrders')} · ${int(m.orders)} ${t('gcOrdersWord')} · ${int(m.buyers)} ${t('gcBuyers')} · ${usd(m.revenue)}` }))} />
               <div className="xs muted">{t('gcByMonthNote')}</div>
             </Card>
           )}
 
-          <Card title={`${t('gcByPrice')} · ${int(prices.length)}`} right={<span className="xs muted">{int(d.matched)} / {int(orders)} {t('gcMatched')}</span>}>
+          <Card title={`${t('gcByCard')} · ${int(prices.length)}`} right={<span className="xs muted">{int(d.matched)} / {int(orders)} {t('gcMatched')}</span>}>
             <Table cols={[
               { k: 'p', h: t('gcCard'), f: (x) => <CardName x={x} /> },
-              { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => <span>{int(x.orders)} <span className="xs muted">{share(n(x.orders), orders)}</span></span> },
+              { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => <span>{int(x.cards)} <span className="xs muted">{share(n(x.cards), cards)}</span></span> },
+              { k: 'n', h: t('gcOrderCount'), r: 1, num: 1, f: (x) => <span>{int(x.orders)}{n(x.multi_orders) > 0 && <div className="xs muted">{int(x.multi_orders)} {t('gcMultiShort')}</div>}</span> },
               { k: 'v', h: t('gcSales'), r: 1, num: 1, f: (x) => usd(x.revenue) },
               { k: 'b', h: t('gcBuyers'), r: 1, num: 1, f: (x) => int(x.buyers) },
               { k: 't', h: t('gcLast30Short'), r: 1, f: (x) => { const k = trendOf(x); return <span className="row gap8" style={{ justifyContent: 'flex-end' }}><span className="num">{int(x.last30)} / {int(x.prev30)}</span><Pill tone={TONE[k]}>{t('gcT_' + k)}</Pill></span> } },
               { k: 'e', h: t('gcSellsEvery'), r: 1, f: (x) => (x.days_between === null ? '—' : <span><span className="num">{n(x.days_between).toFixed(1)}</span> {t('days')}</span>) },
               { k: 'l', h: t('gcLastSold'), r: 1, num: 1, f: (x) => <span className="xs">{day(x.last_sold, lang)}</span> }
-            ]} rows={(allPrices ? prices : prices.slice(0, TOP)).map((x) => ({ ...x, key: x.price }))} empty={t('nothingHere')} />
+            ]} rows={(allPrices ? prices : prices.slice(0, TOP)).map((x) => ({ ...x, key: x.card_key }))} empty={t('nothingHere')} />
             {prices.length > TOP && <div><button type="button" className="btn" onClick={() => setAllPrices(!allPrices)}>{allPrices ? t('gcShowTop') : `${t('showMore')} (${prices.length - TOP})`}</button></div>}
             <div className="xs muted">{t('gcByPriceNote')}</div>
           </Card>
@@ -184,7 +186,8 @@ export default function Giftcards() {
           <Card title={t('gcTopBuyers')}>
             <Table cols={[
               { k: 'c', h: t('customer'), f: (x) => <a className="xs num" href={'#/customers?id=' + x.customer_id}>{x.username || x.email || '—'}</a> },
-              { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => int(x.orders) },
+              { k: 'o', h: t('gcOrders'), r: 1, num: 1, f: (x) => int(x.cards) },
+              { k: 'n', h: t('gcOrderCount'), r: 1, num: 1, f: (x) => int(x.orders) },
               { k: 'v', h: t('gcSales'), r: 1, num: 1, f: (x) => usd(x.revenue) },
               { k: 'l', h: t('gcLastOrder'), r: 1, num: 1, f: (x) => <span className="xs">{day(x.last_order, lang)}</span> }
             ]} rows={(d.top_buyers || []).map((x) => ({ ...x, key: x.customer_id }))} empty={t('nothingHere')} />
@@ -194,7 +197,7 @@ export default function Giftcards() {
             <Table cols={[
               { k: 'd', h: t('date'), num: 1, f: (x) => <span className="xs">{day(x.txn_time, lang)}</span> },
               { k: 'c', h: t('customer'), f: (x) => <a className="xs num" href={'#/customers?id=' + x.customer_id}>{x.username || x.email || '—'}</a> },
-              { k: 'g', h: t('gcCard'), f: (x) => x.product ? <span className="xs">{x.product} · <bdi>{x.denomination}</bdi></span> : <span className="xs muted">{t('gcNotInList')}</span> },
+              { k: 'g', h: t('gcCard'), f: (x) => x.product ? <span className="xs">{n(x.qty) > 1 && <b className="num">{x.qty} × </b>}{x.product} · <bdi>{x.denomination}</bdi></span> : <span className="xs muted">{t('gcNotInList')}</span> },
               { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => usd(x.amt) }
             ]} rows={(d.recent || []).map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />
           </Card>
