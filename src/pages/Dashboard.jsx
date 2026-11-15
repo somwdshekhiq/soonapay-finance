@@ -3,23 +3,21 @@ import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, lastDay, l
 import { Page, Card, Kpi, Loading, Bars, Table, AdminOnly } from '../ui.jsx'
 
 async function load() {
-  const [draft, finance, company, monthly, unpriced, waiting, balances, providers] = await Promise.all([
+  const [draft, finance, company, monthly, unpriced, balances, providers] = await Promise.all([
     q(supabase.from('distribution_periods').select('period_id, period_start, period_end, repayment_rate').eq('status', 'draft').maybeSingle()),
     q(supabase.from('v_finance_balance').select('outstanding_usd')),
     q(supabase.from('v_company_account').select('amount_usd')),
     q(supabase.from('v_distributed_monthly').select('*').order('month')),
     q(supabase.from('v_unclassified').select('txn_id', { count: 'exact', head: true }).then((r) => ({ data: r.count, error: r.error }))),
-    q(supabase.from('promo_redemptions').select('redemption_id', { count: 'exact', head: true }).eq('status', 'pending').then((r) => ({ data: r.count, error: r.error }))),
     q(supabase.from('v_latest_balances').select('*')),
     q(supabase.from('providers').select('provider_id, name, status').eq('track_balance', true).order('balance_order'))
   ])
   const quiet = await q(supabase.rpc('gone_quiet', { p_days: 30, p_limit: 2000 }))
-  const feeCheck = (await q(supabase.rpc('pago_auth_fees'))).filter((f) => !f.batch_id && n(f.amount_usd) > 0.3001)
   const [lastPer, recurring] = await Promise.all([lastClosedPeriod(), monthlyRecurring()])
   let preview = null, prog = null
   if (draft) [preview, prog] = (await Promise.all([q(supabase.rpc('period_preview_v2', { p_period: draft.period_id })), q(supabase.rpc('period_progress', { p_period: draft.period_id }))])).map((x) => x[0])
   return {
-    draft, preview, prog, quiet, feeCheck, lastPer, recurring, providers, balances, unpriced, waiting,
+    draft, preview, prog, quiet, lastPer, recurring, providers, balances, unpriced,
     outstanding: finance.reduce((s, r) => s + n(r.outstanding_usd), 0),
     company: company.reduce((s, r) => s + n(r.amount_usd), 0),
     monthly: monthly.slice(-13)
@@ -74,11 +72,9 @@ export default function Dashboard() {
   return (
     <Page title={t('dashboard')} sub={d?.draft ? `${t('currentPeriod')} · ${day(d.draft.period_start, lang)} – ${day(lastDay(d.draft.period_end), lang)}` : ''}>
       <Loading q={r}>{d && <>
-        {(d.unpriced > 0 || d.waiting > 0 || d.feeCheck.length > 0) && (
+        {d.unpriced > 0 && (
           <div className="attn-bar" role="region" aria-label={t('needsAttention')}>
             {d.unpriced > 0 && <a className="attn" href="#/rules"><b className="num" style={{ fontSize: 20, color: 'var(--warn)' }}>{int(d.unpriced)}</b><span>{t('unpriced')}</span></a>}
-            {d.feeCheck.length > 0 && <a className="attn" href="#/backcharges"><b className="num" style={{ fontSize: 20, color: 'var(--warn)' }}>{int(d.feeCheck.length)}</b><span>{t('feeCheckDash')} ({usd(d.feeCheck.reduce((s, f) => s + n(f.amount_usd), 0))})</span></a>}
-            {d.waiting > 0 && <a className="attn" href="#/promos"><b className="num" style={{ fontSize: 20, color: 'var(--warn)' }}>{int(d.waiting)}</b><span>{t('waitingCards')}</span></a>}
           </div>
         )}
         <div className="grid-kpi">
