@@ -18,16 +18,17 @@ import Backcharges from './pages/Backcharges.jsx'
 import Customers from './pages/Customers.jsx'
 import Pnl from './pages/Pnl.jsx'
 import Partner from './pages/Partner.jsx'
+import Giftcards from './pages/Giftcards.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['backcharges', Backcharges], ['customers', Customers], ['pnl', Pnl], ['partnerStatement', Partner], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['giftCards', Giftcards], ['backcharges', Backcharges], ['customers', Customers], ['pnl', Pnl], ['partnerStatement', Partner], ['importFiles', ImportPage], ['expenses', Expenses],
   ['distributions', Distributions], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
 // menu sections (notifications sits above them, on its own)
 const GROUPS = [
   ['navOverview', ['dashboard', 'statistics', 'pnl']],
-  ['navTransactions', ['importFiles', 'transactions', 'backcharges']],
+  ['navTransactions', ['importFiles', 'transactions', 'giftCards', 'backcharges']],
   ['navCustomers', ['customers', 'promos']],
   ['navPartners', ['distributions', 'partnerStatement', 'financePartners', 'expenses']],
   ['navSettings', ['rules', 'providers']]
