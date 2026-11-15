@@ -3,6 +3,9 @@ import { supabase, useApp, useQuery, q, usd, int, n } from '../lib.js'
 import { Page, Card, Kpi, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
 const when = (v) => new Date(v).toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+// A normal Pago authorization fee is $0.30. Anything above is not deducted from the user until Pagocards confirms it.
+export const FEE_LIMIT = 0.30
+export const overLimit = (f) => n(f.amount_usd) > FEE_LIMIT + 0.0001
 const stamp = () => new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 16).replace(/[-:T]/g, '')
 
 async function load() {
@@ -14,13 +17,15 @@ async function load() {
   const by = {}
   for (const f of fees) {
     const k = f.customer_id ?? 'none:' + (f.card_id || '')
-    const u = (by[k] = by[k] || { key: String(k), email: f.email, name: f.user_name, count: 0, total: 0, charged: 0, due: 0, dueCount: 0, cards: new Set() })
+    const u = (by[k] = by[k] || { key: String(k), email: f.email, name: f.user_name, count: 0, total: 0, charged: 0, due: 0, dueCount: 0, check: 0, checkCount: 0, cards: new Set() })
     const a = n(f.amount_usd)
     u.count++; u.total += a; if (f.card_id) u.cards.add(f.card_id)
-    if (f.batch_id) u.charged += a; else { u.due += a; u.dueCount++ }
+    if (f.batch_id) u.charged += a
+    else if (overLimit(f)) { u.check += a; u.checkCount++ }
+    else { u.due += a; u.dueCount++ }
     if (!u.name && f.user_name) u.name = f.user_name
   }
-  const users = Object.values(by).map((u) => ({ ...u, cards: [...u.cards] })).sort((a, b) => b.due - a.due || b.total - a.total)
+  const users = Object.values(by).map((u) => ({ ...u, cards: [...u.cards] })).sort((a, b) => b.due - a.due || b.check - a.check || b.total - a.total)
   return { fees, batches, users }
 }
 
@@ -36,23 +41,27 @@ export default function Backcharges() {
   const [note, setNote] = useState('')
 
   const match = (x) => !qtext || [x.email, x.name, x.user_name, x.card_id, x.order_id].some((v) => String(v || '').toLowerCase().includes(qtext.toLowerCase()))
-  const due = d ? d.fees.filter((f) => !f.batch_id) : []
+  const due = d ? d.fees.filter((f) => !f.batch_id && !overLimit(f)) : []
+  const toCheck = d ? d.fees.filter((f) => !f.batch_id && overLimit(f)) : []
+  const overCharged = d ? d.fees.filter((f) => f.batch_id && overLimit(f)) : []
+  const sumOf = (l) => l.reduce((s, f) => s + n(f.amount_usd), 0)
   const tot = d ? {
-    total: d.fees.reduce((s, f) => s + n(f.amount_usd), 0), charged: d.fees.filter((f) => f.batch_id).reduce((s, f) => s + n(f.amount_usd), 0),
+    total: d.fees.filter((f) => f.batch_id || !overLimit(f)).reduce((s, f) => s + n(f.amount_usd), 0), charged: d.fees.filter((f) => f.batch_id).reduce((s, f) => s + n(f.amount_usd), 0),
     due: due.reduce((s, f) => s + n(f.amount_usd), 0), dueUsers: new Set(due.map((f) => f.customer_id)).size
   } : {}
-  const logRows = d ? d.fees.filter((f) => (show === 'all' ? true : show === 'due' ? !f.batch_id : !!f.batch_id)).filter(match) : []
+  const logRows = d ? d.fees.filter((f) => (show === 'all' ? true : show === 'check' ? overLimit(f) : show === 'due' ? !f.batch_id && !overLimit(f) : !!f.batch_id)).filter(match) : []
 
   const exportXlsx = async () => {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
     const summary = d.users.map((u) => ({ User: u.name || '', Email: u.email || '', 'Card IDs': u.cards.join(', '), Fees: u.count,
-      'Already deducted': +u.charged.toFixed(2), 'To deduct now': +u.due.toFixed(2), 'Total deduction': +u.total.toFixed(2) }))
-    summary.push({ User: 'TOTAL', Email: '', 'Card IDs': '', Fees: d.fees.length, 'Already deducted': +tot.charged.toFixed(2), 'To deduct now': +tot.due.toFixed(2), 'Total deduction': +tot.total.toFixed(2) })
+      'Already deducted': +u.charged.toFixed(2), 'To deduct now': +u.due.toFixed(2), 'On hold - check with Pagocards': +u.check.toFixed(2), 'Total deduction': +(u.charged + u.due).toFixed(2) }))
+    summary.push({ User: 'TOTAL', Email: '', 'Card IDs': '', Fees: d.fees.length, 'Already deducted': +tot.charged.toFixed(2), 'To deduct now': +tot.due.toFixed(2), 'On hold - check with Pagocards': +sumOf(toCheck).toFixed(2), 'Total deduction': +(tot.charged + tot.due).toFixed(2) })
     const row = (f) => ({ Date: when(f.txn_time), User: f.user_name || '', Email: f.email || '', 'Card ID': f.card_id || '', 'Order ID': f.order_id || '',
-      Amount: +n(f.amount_usd).toFixed(2), Status: f.batch_id ? `Deducted (batch ${f.batch_id})` : 'To deduct' })
+      Amount: +n(f.amount_usd).toFixed(2), Status: f.batch_id ? `Deducted (batch ${f.batch_id})${overLimit(f) ? ' - above $0.30' : ''}` : overLimit(f) ? 'On hold - check with Pagocards' : 'To deduct' })
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary by user')
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(due.map(row)), 'Fees to deduct')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...toCheck, ...overCharged].map(row)), 'Above 0.30 - to check')
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d.fees.map(row)), 'All fees')
     XLSX.writeFile(wb, `pago-authorization-fees-${stamp()}.xlsx`)
   }
@@ -72,9 +81,17 @@ export default function Backcharges() {
     <Page title={t('backcharges')} sub={t('backchargesSub')}>
       <Loading q={r}>{d && <>
         {msg && <div className={msg.bad ? 'alert' : 'ok'}>{msg.bad || msg.ok}</div>}
+        {(toCheck.length > 0 || overCharged.length > 0) && (
+          <div className="alert">
+            <b>{t('feeCheckTitle')}</b> {t('feeCheckText').replace('{n}', int(toCheck.length)).replace('{a}', usd(sumOf(toCheck)))}
+            {overCharged.length > 0 && <> {t('feeCheckCharged').replace('{n}', int(overCharged.length)).replace('{a}', usd(sumOf(overCharged)))}</>}
+            {' '}<button className="btn ghost" style={{ minHeight: 0, padding: '2px 8px' }} onClick={() => setShow('check')}>{t('feeCheckShow')}</button>
+          </div>
+        )}
         <div className="grid-kpi">
           <Kpi tone="warn" label={t('toDeductNow')} value={usd(tot.due)} note={`${int(due.length)} ${t('fees')} · ${int(tot.dueUsers)} ${t('users')}`} />
           <Kpi tone="soft" label={t('alreadyDeducted')} value={usd(tot.charged)} />
+          {toCheck.length > 0 && <Kpi tone="soft" label={t('feeOnHold')} value={usd(sumOf(toCheck))} note={`${int(toCheck.length)} ${t('fees')} · ${t('feeAbove')}`} />}
           <Kpi tone="soft" label={t('totalDeduction')} value={usd(tot.total)} note={`${int(d.fees.length)} ${t('fees')} · ${int(d.users.length)} ${t('users')}`} />
         </div>
 
@@ -95,13 +112,14 @@ export default function Backcharges() {
             { k: 'c', h: t('fees'), r: 1, num: 1, f: (x) => int(x.count) },
             { k: 'ch', h: t('alreadyDeducted'), r: 1, num: 1, f: (x) => usd(x.charged) },
             { k: 'du', h: t('toDeductNow'), r: 1, num: 1, f: (x) => <b style={{ color: x.due > 0 ? 'var(--warn)' : 'var(--muted)' }}>{usd(x.due)}</b> },
-            { k: 't', h: t('totalDeduction'), r: 1, num: 1, f: (x) => usd(x.total) }
+            { k: 'ck', h: t('feeOnHold'), r: 1, num: 1, f: (x) => (x.check > 0 ? <span style={{ color: 'var(--accent-d)' }}>{usd(x.check)}</span> : '') },
+            { k: 't', h: t('totalDeduction'), r: 1, num: 1, f: (x) => usd(x.charged + x.due) }
           ]} rows={d.users.filter(match).map((u) => ({ ...u }))} empty={t('nothingHere')} />
         </Card>
 
         <Card title={t('feeLog')} right={<div className="row gap8 wrap">
             <input className="inp" style={{ width: 240 }} aria-label={t('search')} placeholder={t('searchFeesPh')} value={qtext} onChange={(e) => setQtext(e.target.value)} />
-            {[['due', t('toDeduct')], ['charged', t('deducted')], ['all', t('all')]].map(([k, l]) =>
+            {[['due', t('toDeduct')], ['check', t('feeCheckTab')], ['charged', t('deducted')], ['all', t('all')]].map(([k, l]) =>
               <button key={k} className={'btn ' + (show === k ? 'on' : '')} onClick={() => setShow(k)}>{l}</button>)}</div>}>
           <Table cols={[
             { k: 'd', h: t('date'), num: 1, f: (x) => <span className="xs" style={{ whiteSpace: 'nowrap' }}>{when(x.txn_time)}</span> },
@@ -109,8 +127,8 @@ export default function Backcharges() {
             { k: 'e', h: t('email'), f: (x) => <span className="xs num">{x.email || '—'}</span> },
             { k: 'c', h: t('cardId'), f: (x) => <span className="xs num">{x.card_id}</span> },
             { k: 'o', h: t('orderId'), f: (x) => <span className="xs num">{x.order_id}</span> },
-            { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => usd(x.amount_usd) },
-            { k: 's', h: t('status'), f: (x) => <Pill tone={x.batch_id ? 'good' : 'warn'}>{x.batch_id ? `${t('deducted')} · #${x.batch_id}` : t('toDeduct')}</Pill> }
+            { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => <span style={overLimit(x) ? { color: 'var(--warn)', fontWeight: 600 } : undefined}>{usd(x.amount_usd)}</span> },
+            { k: 's', h: t('status'), f: (x) => <span className="chips">{(x.batch_id || !overLimit(x)) && <Pill tone={x.batch_id ? 'good' : 'warn'}>{x.batch_id ? `${t('deducted')} · #${x.batch_id}` : t('toDeduct')}</Pill>}{overLimit(x) && <Pill tone="violet">{t('feeCheckPill')}</Pill>}</span> }
           ]} rows={logRows.slice(0, 500).map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />
           {logRows.length > 500 && <div className="xs muted">{t('showingFirst')} 500 / {int(logRows.length)} · {t('exportForAll')}</div>}
         </Card>

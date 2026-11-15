@@ -45,7 +45,7 @@ function Detail({ id }) {
             <Kpi tone="soft" label={t('moneyIn')} value={usd(tot.money_in, 0)} />
             <Kpi tone="soft" label={t('moneyOut')} value={usd(tot.money_out, 0)} />
             <Kpi tone="soft" label={t('transactions')} value={int(tot.txns)} note={<a href={'#/transactions?q=' + encodeURIComponent(c.email)}>{t('allTxns')} →</a>} />
-            {n(d.fees.total) > 0 && <Kpi tone={n(d.fees.due) > 0 ? 'warn' : 'soft'} label={t('feesDue')} value={usd(d.fees.due)} note={`${int(d.fees.count)} ${t('fees')} · ${t('alreadyDeducted')} ${usd(d.fees.charged)}`} />}
+            {n(d.fees.total) > 0 && <Kpi tone={n(d.fees.due) > 0 ? 'warn' : 'soft'} label={t('feesDue')} value={usd(d.fees.due)} note={`${int(d.fees.count)} ${t('fees')} · ${t('alreadyDeducted')} ${usd(d.fees.charged)}${n(d.fees.on_hold) > 0 ? ` · ${t('feeOnHold')} ${usd(d.fees.on_hold)}` : ''}`} />}
           </div>
         </Card>
 
