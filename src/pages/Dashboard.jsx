@@ -101,7 +101,7 @@ export default function Dashboard() {
             <Card title={t('walletsHeading')} right={<AdminOnly><button className="btn" onClick={() => setEditing(true)}>{t('updateBalances')}</button></AdminOnly>}>
               {editing && <BalanceForm providers={d.providers} t={t} onDone={() => { setEditing(false); r.reload() }} />}
               <div className="grid-kpi">
-                <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? `${t('asOf')} ${day(w.snapshot_date, lang)}` : ''} />
+                <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? <>{t('asOf')} {day(w.snapshot_date, lang)}{String(w.note || '').startsWith('Wallet export') && <> · <a href="#/wallets">{t('wlPosOnly')}</a></>}</> : ''} />
                 <Kpi tone="soft" label={t('walletsTotal')} value={usd(total)} note={rows.filter((x) => !x.b).length ? `${rows.filter((x) => !x.b).length} × ${t('notEnteredYet')}` : ''} />
                 <Kpi wide tone={gap > 0 ? 'warn' : 'good'} label={gap > 0 ? t('gapShort') : t('surplus')} value={gap === null ? '—' : usd(Math.abs(gap))}
                      note={gap > 0 ? (!d.lastPer ? t('gapNoReserve') : isFinite(gm.months) ? fill('gapLastPeriod') : fill('gapNeverCloses')) : ''} />

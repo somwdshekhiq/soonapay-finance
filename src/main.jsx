@@ -19,9 +19,10 @@ import Customers from './pages/Customers.jsx'
 import Pnl from './pages/Pnl.jsx'
 import Partner from './pages/Partner.jsx'
 import Giftcards from './pages/Giftcards.jsx'
+import Wallets from './pages/Wallets.jsx'
 
 const ROUTES = [
-  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['giftCards', Giftcards], ['backcharges', Backcharges], ['customers', Customers], ['pnl', Pnl], ['partnerStatement', Partner], ['importFiles', ImportPage], ['expenses', Expenses],
+  ['dashboard', Dashboard], ['notifications', Notifications], ['statistics', Stats], ['financePartners', Finance], ['transactions', Transactions], ['giftCards', Giftcards], ['backcharges', Backcharges], ['customers', Customers], ['wallets', Wallets], ['pnl', Pnl], ['partnerStatement', Partner], ['importFiles', ImportPage], ['expenses', Expenses],
   ['distributions', Distributions], ['promos', Promos], ['rules', Rules], ['providers', Providers]
 ]
 const ADMIN_ONLY = ['notifications', 'providers']
@@ -29,7 +30,7 @@ const ADMIN_ONLY = ['notifications', 'providers']
 const GROUPS = [
   ['navOverview', ['dashboard', 'statistics', 'pnl']],
   ['navTransactions', ['importFiles', 'transactions', 'giftCards', 'backcharges']],
-  ['navCustomers', ['customers', 'promos']],
+  ['navCustomers', ['customers', 'wallets', 'promos']],
   ['navPartners', ['distributions', 'partnerStatement', 'financePartners', 'expenses']],
   ['navSettings', ['rules', 'providers']]
 ]
