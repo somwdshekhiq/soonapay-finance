@@ -3,11 +3,11 @@ import { supabase, useApp, useQuery, q, usd, int, n } from '../lib.js'
 import { Page, Card, Kpi, Loading, Table, Pill, AdminOnly } from '../ui.jsx'
 
 const when = (v) => new Date(v).toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-// A normal Pago authorization fee is $0.30. Anything above is not deducted from the user until Pagocards confirms it.
+// Every Pago fee is deducted at the amount charged. Pagocards confirmed (16 Nov 2026) that fees above $0.30 are
+// real (FX + authorization), so nothing is held any more. Old fee reviews (fee_reviews) still apply if any exist.
 export const FEE_LIMIT = 0.30
 export const overLimit = (f) => n(f.amount_usd) > FEE_LIMIT + 0.0001
-// review by the admin after Pagocards answers: approved (with the amount to keep) or rejected (dropped, counts as 0)
-const held = (f) => overLimit(f) && !f.rev            // still waiting for Pagocards
+const held = () => false
 const eff = (f) => (f.rev ? (f.rev.status === 'approved' ? n(f.rev.approved_amount) : 0) : n(f.amount_usd))
 const refundOf = (f) => (f.batch_id && f.rev ? Math.max(0, n(f.amount_usd) - eff(f)) : 0)
 const stamp = () => new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 16).replace(/[-:T]/g, '')
@@ -36,25 +36,8 @@ async function load() {
   return { fees, batches, users }
 }
 
-function ReviewCell({ f, t, admin, onSave }) {
-  const [amt, setAmt] = useState(f.rev?.status === 'approved' ? String(f.rev.approved_amount) : String(n(f.amount_usd).toFixed(2)))
-  const [busy, setBusy] = useState(false)
-  if (!admin) return null
-  const go = async (status) => { setBusy(true); await onSave(f.txn_id, status, status === 'approved' ? amt : null); setBusy(false) }
-  return (
-    <span className="row gap8 wrap" style={{ alignItems: 'center', maxWidth: 200, rowGap: 6 }}>
-      <input className="inp num" type="number" step="0.01" min="0" max={n(f.amount_usd)} style={{ width: 74, minHeight: 34, padding: '4px 8px' }} aria-label={t('feeApprovedAmt')} title={t('feeApprovedAmt')}
-        value={amt} disabled={busy || f.rev?.status === 'rejected'} onChange={(e) => setAmt(e.target.value)} />
-      <button style={{ minHeight: 34, padding: '4px 10px' }} className="btn" disabled={busy || amt === ''} onClick={() => go('approved')}>{f.rev?.status === 'approved' ? t('save') : t('feeApprove')}</button>
-      <button style={{ minHeight: 34, padding: '4px 10px' }} className="btn" disabled={busy || f.rev?.status === 'rejected'} onClick={() => go('rejected')}>{t('feeReject')}</button>
-      {f.rev && <button style={{ minHeight: 34, padding: '4px 10px' }} className="btn ghost" disabled={busy} onClick={() => go('pending')} title={t('feeReset')} aria-label={t('feeReset')}>↺</button>}
-    </span>
-  )
-}
-
 export default function Backcharges() {
-  const { t, role } = useApp()
-  const admin = role === 'admin'
+  const { t } = useApp()
   const r = useQuery(load)
   const d = r.data
   const [show, setShow] = useState('due')
@@ -75,23 +58,18 @@ export default function Backcharges() {
     due: due.reduce((s, f) => s + eff(f), 0), dueUsers: new Set(due.map((f) => f.customer_id)).size, refund: refunds.reduce((s, f) => s + refundOf(f), 0)
   } : {}
   const logRows = d ? d.fees.filter((f) => (show === 'all' ? true : show === 'check' ? overLimit(f) : show === 'due' ? !f.batch_id && !held(f) && eff(f) > 0 : !!f.batch_id)).filter(match) : []
-  const review = async (txn, status, amount) => {
-    const { error } = await supabase.rpc('admin_set_fee_review', { p_txn: txn, p_status: status, p_amount: amount === null || amount === '' ? null : Number(amount) })
-    if (error) setMsg({ bad: error.message }); else r.reload()
-  }
 
   const exportXlsx = async () => {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
     const summary = d.users.map((u) => ({ User: u.name || '', Email: u.email || '', 'Card IDs': u.cards.join(', '), Fees: u.count,
-      'Already deducted': +u.charged.toFixed(2), 'To deduct now': +u.due.toFixed(2), 'On hold - check with Pagocards': +u.check.toFixed(2), 'To refund': +u.refund.toFixed(2), 'Total deduction': +(u.charged - u.refund + u.due).toFixed(2) }))
-    summary.push({ User: 'TOTAL', Email: '', 'Card IDs': '', Fees: d.fees.length, 'Already deducted': +tot.charged.toFixed(2), 'To deduct now': +tot.due.toFixed(2), 'On hold - check with Pagocards': +sumOf(toCheck).toFixed(2), 'To refund': +tot.refund.toFixed(2), 'Total deduction': +(tot.charged - tot.refund + tot.due).toFixed(2) })
+      'Already deducted': +u.charged.toFixed(2), 'To deduct now': +u.due.toFixed(2), 'To refund': +u.refund.toFixed(2), 'Total deduction': +(u.charged - u.refund + u.due).toFixed(2) }))
+    summary.push({ User: 'TOTAL', Email: '', 'Card IDs': '', Fees: d.fees.length, 'Already deducted': +tot.charged.toFixed(2), 'To deduct now': +tot.due.toFixed(2), 'To refund': +tot.refund.toFixed(2), 'Total deduction': +(tot.charged - tot.refund + tot.due).toFixed(2) })
     const row = (f) => ({ Date: when(f.txn_time), User: f.user_name || '', Email: f.email || '', 'Card ID': f.card_id || '', 'Order ID': f.order_id || '',
       Amount: +n(f.amount_usd).toFixed(2), Review: f.rev ? (f.rev.status === 'approved' ? 'Approved' : 'Rejected') : '', 'Final fee': +eff(f).toFixed(2), 'To refund': +refundOf(f).toFixed(2),
       Status: f.batch_id ? `Deducted (batch ${f.batch_id})${overLimit(f) ? ' - above $0.30' : ''}` : f.rev?.status === 'rejected' ? 'Rejected - dropped' : held(f) ? 'On hold - check with Pagocards' : 'To deduct' })
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary by user')
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(due.map(row)), 'Fees to deduct')
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d.fees.filter(overLimit).map(row)), 'Above 0.30')
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d.fees.map(row)), 'All fees')
     XLSX.writeFile(wb, `pago-authorization-fees-${stamp()}.xlsx`)
   }
@@ -144,7 +122,6 @@ export default function Backcharges() {
             { k: 'c', h: t('fees'), r: 1, num: 1, f: (x) => int(x.count) },
             { k: 'ch', h: t('alreadyDeducted'), r: 1, num: 1, f: (x) => usd(x.charged) },
             { k: 'du', h: t('toDeductNow'), r: 1, num: 1, f: (x) => <b style={{ color: x.due > 0 ? 'var(--warn)' : 'var(--muted)' }}>{usd(x.due)}</b> },
-            { k: 'ck', h: t('feeCheckTab'), r: 1, num: 1, f: (x) => (x.check > 0 ? <span style={{ color: 'var(--accent-d)' }}>{usd(x.check)}</span> : '') },
             ...(tot.refund > 0 ? [{ k: 'rf', h: t('feeRefund'), r: 1, num: 1, f: (x) => (x.refund > 0 ? <b style={{ color: 'var(--warn)' }}>{usd(x.refund)}</b> : '') }] : []),
             { k: 't', h: t('totalDeduction'), r: 1, num: 1, f: (x) => usd(x.charged - x.refund + x.due) }
           ]} rows={d.users.filter(match).map((u) => ({ ...u }))} empty={t('nothingHere')} />
@@ -152,7 +129,7 @@ export default function Backcharges() {
 
         <Card title={t('feeLog')} right={<div className="row gap8 wrap">
             <input className="inp" style={{ width: 240 }} aria-label={t('search')} placeholder={t('searchFeesPh')} value={qtext} onChange={(e) => setQtext(e.target.value)} />
-            {[['due', t('toDeduct')], ['check', t('feeCheckTab')], ['charged', t('deducted')], ['all', t('all')]].map(([k, l]) =>
+            {[['due', t('toDeduct')], ['charged', t('deducted')], ['all', t('all')]].map(([k, l]) =>
               <button key={k} className={'btn ' + (show === k ? 'on' : '')} onClick={() => setShow(k)}>{l}</button>)}</div>}>
           <Table cols={[
             { k: 'd', h: t('date'), num: 1, f: (x) => <span className="xs" style={{ whiteSpace: 'nowrap' }}>{when(x.txn_time)}</span> },
@@ -160,12 +137,10 @@ export default function Backcharges() {
             { k: 'e', h: t('email'), f: (x) => <span className="xs num">{x.email || '—'}</span> },
             { k: 'c', h: t('cardId'), f: (x) => <span className="xs num" title={x.card_id}>{x.card_id && x.card_id.length > 12 ? '…' + x.card_id.slice(-8) : x.card_id}</span> },
             { k: 'o', h: t('orderId'), f: (x) => <span className="xs num">{x.order_id}</span> },
-            { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => <span style={overLimit(x) ? { color: 'var(--warn)', fontWeight: 600 } : undefined}>{usd(x.amount_usd)}</span> },
-            { k: 's', h: t('status'), f: (x) => <span className="chips">{x.batch_id && <Pill tone="good">{`${t('deducted')} · #${x.batch_id}`}</Pill>}{!x.batch_id && !overLimit(x) && <Pill tone="warn">{t('toDeduct')}</Pill>}
-              {!x.batch_id && x.rev?.status === 'approved' && eff(x) > 0 && <Pill tone="warn">{t('toDeduct')}</Pill>}
+            { k: 'a', h: t('amount'), r: 1, num: 1, f: (x) => <span>{usd(x.amount_usd)}</span> },
+            { k: 's', h: t('status'), f: (x) => <span className="chips">{x.batch_id && <Pill tone="good">{`${t('deducted')} · #${x.batch_id}`}</Pill>}{!x.batch_id && eff(x) > 0 && <Pill tone="warn">{t('toDeduct')}</Pill>}
               {held(x) && <Pill tone="violet">{t('feeCheckPill')}</Pill>}{x.rev?.status === 'approved' && <Pill tone="good">{t('feeApproved')} · {usd(eff(x))}</Pill>}{x.rev?.status === 'rejected' && <Pill tone="grey">{t('feeRejected')}</Pill>}
               {refundOf(x) > 0.0001 && <Pill tone="violet">{t('feeRefund')} {usd(refundOf(x))}</Pill>}</span> },
-            { k: 'rv', h: t('feeReview'), f: (x) => (overLimit(x) ? <ReviewCell f={x} t={t} admin={admin} onSave={review} /> : '') }
           ]} rows={logRows.slice(0, 500).map((x) => ({ ...x, key: x.txn_id }))} empty={t('nothingHere')} />
           {logRows.length > 500 && <div className="xs muted">{t('showingFirst')} 500 / {int(logRows.length)} · {t('exportForAll')}</div>}
         </Card>
