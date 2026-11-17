@@ -31,10 +31,9 @@ function BalanceForm({ providers, onDone, t }) {
   const [msg, setMsg] = useState('')
   const save = async () => {
     const provs = {}
-    Object.entries(vals).forEach(([k, v]) => { if (k !== 'wallets' && v !== '' && v !== undefined) provs[k] = v })
-    const wallets = vals.wallets === undefined || vals.wallets === '' ? null : Number(vals.wallets)
-    if (wallets === null && !Object.keys(provs).length) return
-    const { error } = await supabase.rpc('admin_save_balances', { p_date: date, p_wallets: wallets, p_providers: provs })
+    Object.entries(vals).forEach(([k, v]) => { if (v !== '' && v !== undefined) provs[k] = v })
+    if (!Object.keys(provs).length) return
+    const { error } = await supabase.rpc('admin_save_balances', { p_date: date, p_wallets: null, p_providers: provs })
     if (error) return setMsg(error.message)
     onDone()
   }
@@ -42,7 +41,6 @@ function BalanceForm({ providers, onDone, t }) {
     <div className="card" style={{ background: 'var(--ground)', border: 0 }}>
       <div className="form-grid">
         <label className="field"><span>{t('date')}</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-        <label className="field"><span>{t('customerOwed')}</span><input type="number" step="0.01" onChange={(e) => setVals({ ...vals, wallets: e.target.value })} /></label>
         {providers.map((p) => (
           <label key={p.provider_id} className="field"><span>{p.name}</span>
             <input type="number" step="0.01" onChange={(e) => setVals({ ...vals, [p.provider_id]: e.target.value })} /></label>
@@ -101,7 +99,7 @@ export default function Dashboard() {
             <Card title={t('walletsHeading')} right={<AdminOnly><button className="btn" onClick={() => setEditing(true)}>{t('updateBalances')}</button></AdminOnly>}>
               {editing && <BalanceForm providers={d.providers} t={t} onDone={() => { setEditing(false); r.reload() }} />}
               <div className="grid-kpi">
-                <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? <>{t('asOf')} {day(w.snapshot_date, lang)}{String(w.note || '').startsWith('Wallet export') && <> · <a href="#/wallets">{t('wlPosOnly')}</a></>}</> : ''} />
+                <Kpi tone="soft" label={t('customerOwed')} value={owed === null ? t('notEnteredYet') : usd(owed)} note={w ? <>{t('asOf')} {day(w.snapshot_date, lang)} · <a href="#/wallets">{String(w.note || '').startsWith('Wallet export') ? t('wlPosOnly') : t('wlUpload')}</a></> : <a href="#/wallets">{t('wlUpload')}</a>} />
                 <Kpi tone="soft" label={t('walletsTotal')} value={usd(total)} note={rows.filter((x) => !x.b).length ? `${rows.filter((x) => !x.b).length} × ${t('notEnteredYet')}` : ''} />
                 <Kpi wide tone={gap > 0 ? 'warn' : 'good'} label={gap > 0 ? t('gapShort') : t('surplus')} value={gap === null ? '—' : usd(Math.abs(gap))}
                      note={gap > 0 ? (!d.lastPer ? t('gapNoReserve') : isFinite(gm.months) ? fill('gapLastPeriod') : fill('gapNeverCloses')) : ''} />
