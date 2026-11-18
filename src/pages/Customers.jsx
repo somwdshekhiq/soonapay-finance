@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n } from '../lib.js'
+import { supabase, useApp, useQuery, q, usd, int, day, monthLabel, n, fmtPhone } from '../lib.js'
 import { Page, Card, Kpi, Loading, Table, Pill, Bars } from '../ui.jsx'
 
 const PAGE = 50
@@ -17,6 +17,8 @@ function Who({ x, lg }) {
       <div style={{ minWidth: 0, textAlign: 'start' }}>
         <div style={lg ? { fontSize: 20, fontWeight: 600 } : { fontWeight: 500 }}>{x.username || x.email}</div>
         {x.username && <div className="xs muted num" style={{ overflowWrap: 'anywhere' }}>{x.email}</div>}
+        {x.full_name && !lg && <div className="xs muted">{x.full_name}</div>}
+        {x.mobile && !lg && <div className="xs num" dir="ltr" style={{ textAlign: 'start' }}>{fmtPhone(x.mobile)}</div>}
       </div>
     </div>
   )
@@ -46,6 +48,27 @@ function Detail({ id }) {
             <Kpi tone="soft" label={t('moneyOut')} value={usd(tot.money_out, 0)} />
             <Kpi tone="soft" label={t('transactions')} value={int(tot.txns)} note={<a href={'#/transactions?q=' + encodeURIComponent(c.email)}>{t('allTxns')} →</a>} />
             {n(d.fees.total) > 0 && <Kpi tone={n(d.fees.due) > 0 ? 'warn' : 'soft'} label={t('feesDue')} value={usd(d.fees.due)} note={`${int(d.fees.count)} ${t('fees')} · ${t('alreadyDeducted')} ${usd(d.fees.charged)}${n(d.fees.on_hold) > 0 ? ` · ${t('feeOnHold')} ${usd(d.fees.on_hold)}` : ''}`} />}
+          </div>
+        </Card>
+
+        <Card title={t('contactCard')}>
+          <div className="grid-kpi">
+            <div>
+              <div className="xs muted">{t('phone')}</div>
+              {c.mobile
+                ? <div><a className="num" dir="ltr" href={'tel:' + fmtPhone(c.mobile)} aria-label={`${t('callNumber')} ${fmtPhone(c.mobile)}`} style={{ fontSize: 18, fontWeight: 600 }}>{fmtPhone(c.mobile)}</a></div>
+                : <div className="muted small">{t('noPhone')}</div>}
+              {(c.mobiles || []).filter((m) => m !== c.mobile).length > 0 && <div className="xs muted">{t('otherNumbers')}: {(c.mobiles || []).filter((m) => m !== c.mobile).map((m, i) => <span key={m}>{i ? ' · ' : ''}<span className="num" dir="ltr">{fmtPhone(m)}</span></span>)}</div>}
+            </div>
+            <div><div className="xs muted">{t('fullName')}</div><div>{c.full_name || '—'}</div></div>
+            <div><div className="xs muted">{t('platformId')}</div><div className="num">{c.platform_id || '—'}</div></div>
+            {d.wallet && <div>
+              <div className="xs muted">{t('walletNow')}</div>
+              {d.wallet.in_export
+                ? <><div><b className="num" style={{ color: n(d.wallet.balance) < 0 ? 'var(--warn)' : undefined }}>{usd(d.wallet.balance)}</b>{d.wallet.currency && d.wallet.currency !== 'USD' ? ' ' + d.wallet.currency : ''}</div>
+                  <div className="xs muted">{t('walletAsOf')} {day(d.wallet.snapshot_date, lang)}</div></>
+                : <><div>{t('wlNotInExport')}</div><div className="xs muted">{t('walletAsOf')} {day(d.wallet.snapshot_date, lang)}</div></>}
+            </div>}
           </div>
         </Card>
 
